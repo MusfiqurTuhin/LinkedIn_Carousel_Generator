@@ -123,7 +123,12 @@ if st.button("🔍 Analyze Video & Plan Content", type="primary"):
             if not api_key:
                 st.warning("⚠️ No API Key. Using Basic Mode.")
             
-            content = process_content(text, api_key=api_key, content_type=content_type)
+            content, error_msg = process_content(text, api_key=api_key, content_type=content_type)
+            
+            if error_msg:
+                st.warning(f"⚠️ AI Generation Failed: {error_msg}")
+                st.info("Using 'Basic Mode' fallback content. Please edit manually.")
+            
             if content:
                 st.session_state.slides_content = content
                 st.rerun() # Rerun to show the editor

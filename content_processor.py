@@ -31,6 +31,7 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
     if not text:
         return []
 
+    error_msg = None
     if api_key:
         try:
             if provider == "gemini":
@@ -112,15 +113,28 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
                 
                 response = model.generate_content(final_prompt)
                 content = response.text
-                content = re.sub(r'```json\n|\n```', '', content)
-                content = content.strip()
-                if content.startswith('```'): content = content[3:]
-                if content.endswith('```'): content = content[:-3]
                 
-                return json.loads(content)
-                
+                # Robust JSON Extraction
+                try:
+                    # Find the first '[' and last ']'
+                    start_idx = content.find('[')
+                    end_idx = content.rfind(']')
+                    
+                    if start_idx != -1 and end_idx != -1:
+                        json_str = content[start_idx:end_idx+1]
+                        return json.loads(json_str), None # Success, No Error
+                    else:
+                        raise ValueError("No JSON array found in response")
+                        
+                except json.JSONDecodeError as je:
+                    error_msg = f"JSON Error: {je}"
+                    print(f"{error_msg}. Raw content: {content[:100]}...")
+                    raise # Re-raise to trigger fallback
+                    
         except Exception as e:
-            print(f"LLM Error: {e}. Falling back to heuristic.")
+            error_msg = f"LLM Error: {e}"
+            print(f"{error_msg}. Falling back to heuristic.")
+            # In a real app, we might want to return the error to the UI
     
     # Smarter Heuristic Fallback for Success Story
     # 1. Clean text
@@ -138,31 +152,37 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
     if not solutions: solutions = sentences[2:4] if len(sentences) > 4 else ["Implemented Odoo ERP"]
     if not results: results = sentences[-3:-1] if len(sentences) > 3 else ["Improved efficiency"]
 
-    return [
+    # Dynamic Titles (Try to find a short summary sentence or use generic)
+    # This is hard without LLM, but we can try to vary it slightly or just keep it safe.
+    # We will stick to safe titles but ensure the BODY is rich.
+
+    fallback_content = [
         {
             "subtitle": "Success Story",
-            "title": "How We Transformed Our Business",
+            "title": "Transformation Journey", # Changed from generic "How We..."
             "body": "Powered by Metamorphosis - Bangladesh's Leading Odoo Partner"
         },
         {
             "subtitle": "The Challenge",
-            "title": "Critical Bottlenecks",
+            "title": "Key Obstacles", # Changed
             "body": challenges[:3] if challenges else ["Manual processes", "Lack of data visibility"]
         },
         {
             "subtitle": "The Solution",
-            "title": "Odoo Implementation",
+            "title": "Strategic Implementation", # Changed
             "body": solutions[:3] if solutions else ["Automated Manufacturing", "Real-time Dashboards"]
         },
         {
             "subtitle": "The Result",
-            "title": "Measurable Growth",
+            "title": "Business Impact", # Changed
             "body": "",
-            "stats": [{"value": "100%", "label": "Digital Transformation"}, {"value": "2x", "label": "Faster Operations"}] # Default placeholders for manual edit
+            "stats": [{"value": "100%", "label": "Transformation"}, {"value": "Growth", "label": "Achieved"}] 
         },
         {
             "subtitle": "Partner with Experts",
-            "title": "Ready to Transform?",
+            "title": "Start Your Journey",
             "body": "Contact Metamorphosis\nLink in bio"
         }
     ]
+    
+    return fallback_content, error_msg
