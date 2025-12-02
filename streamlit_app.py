@@ -4,7 +4,7 @@ import shutil
 import uuid
 from carousel_generator import CarouselGenerator
 from youtube_extractor import get_transcript_text
-from content_processor import process_content
+from content_processor import process_content, verify_api_key
 
 # Page Config
 st.set_page_config(page_title="LinkedIn Carousel Generator", page_icon="✨", layout="wide")
