@@ -57,13 +57,17 @@ def generate():
     generator = CarouselGenerator(logo_path=logo_path)
     generated_images = []
     
-    for i, slide in enumerate(slides_content):
-        # Generate and return absolute path
-        abs_path = generator.generate_slide(slide, i + 1, len(slides_content), session_output_dir)
-        # Convert to relative URL for template
-        filename = os.path.basename(abs_path)
-        rel_url = url_for('static', filename=f'output/{session_id}/{filename}')
-        generated_images.append(rel_url)
+    try:
+        abs_paths = generator.generate_all_slides(slides_content, session_output_dir)
+        for abs_path in abs_paths:
+             # Convert to relative URL for template
+            filename = os.path.basename(abs_path)
+            rel_url = url_for('static', filename=f'output/{session_id}/{filename}')
+            generated_images.append(rel_url)
+    except Exception as e:
+        print(f"Generation failed: {e}")
+        # Handle error gracefully or show error page
+        return f"Error: {e}", 500
         
     return render_template('result.html', images=generated_images)
 

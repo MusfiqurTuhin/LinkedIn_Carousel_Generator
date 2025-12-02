@@ -115,10 +115,11 @@ if st.button("Generate Carousel"):
             # Initialize Generator
             generator = CarouselGenerator(logo_path=logo_path, brand_color=primary_color)
             
-            image_paths = []
-            for i, slide in enumerate(slides_content):
-                path = generator.generate_slide(slide, i + 1, len(slides_content), output_dir)
-                image_paths.append(path)
+            try:
+                image_paths = generator.generate_all_slides(slides_content, output_dir)
+            except Exception as e:
+                st.error(f"Generation Failed: {e}")
+                st.stop()
                 
         # 4. Display Results
         st.success("🎉 Carousel Generated Successfully!")
