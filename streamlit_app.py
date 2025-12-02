@@ -79,11 +79,8 @@ with tab2:
     manual_text = st.text_area("Paste Text Content", height=150, placeholder="Paste a blog post, transcript, or rough notes here.")
 
 st.markdown("### 2. Carousel Type")
-content_type = st.selectbox(
-    "Choose the goal of this carousel:",
-    ["Success Story (Problem/Solution)", "Tutorial (Step-by-Step)", "Educational (Deep Dive)", "Video Takeaway (Summary)"],
-    index=0
-)
+st.info("🔒 Mode: Success Story (Fixed)")
+content_type = "Success Story"
 
 # Session State for Content
 if 'slides_content' not in st.session_state:

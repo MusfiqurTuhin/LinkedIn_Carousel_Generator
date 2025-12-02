@@ -23,51 +23,38 @@ def process_content(text, api_key=None, provider="gemini", content_type="Video T
                 Transcript:
                 {text[:15000]}
                 
-                **Goal:** Create a "{content_type}" carousel.
+                **Goal:** Create a Success Story carousel.
                 """
                 
-                type_instructions = ""
-                if "Success Story" in content_type:
-                    type_instructions = """
-                    **Structure (Success Story) - STRICTLY FOLLOW THIS:**
-                    
-                    **Slide 1: The Hook**
-                    - Title: The main achievement (e.g., "How [Company] Scaled Social Impact with Odoo").
-                    - Subtitle: "Success Story".
-                    - Body: "Powered by Metamorphosis - Bangladesh's Leading Odoo Partner" (or similar context).
-                    
-                    **Slide 2: The Challenge**
-                    - Title: "The Challenge".
-                    - Subtitle: Context (e.g., "[Company] faced critical bottlenecks:").
-                    - Body: A list of 3 specific pain points (e.g., "Manual processes", "Lack of data").
-                    
-                    **Slide 3: The Solution**
-                    - Title: "The Solution".
-                    - Subtitle: "Metamorphosis implemented a comprehensive Odoo ERP ecosystem:".
-                    - Body: A list of 3 specific solutions (e.g., "Automated Manufacturing", "Real-time Dashboards").
-                    
-                    **Slide 4: The Result**
-                    - Title: "The Result".
-                    - Subtitle: "Measurable Business Growth".
-                    - Body: LEAVE EMPTY.
-                    - Stats: Extract 2 key metrics. Format: [{"value": "45%", "label": "Business Growth"}, {"value": "50%", "label": "Faster Process"}].
-                    
-                    **Slide 5: CTA**
-                    - Title: "Ready to Transform Your Business?".
-                    - Subtitle: "Partner with the experts who deliver results."
-                    - Body: "Contact Metamorphosis".
-                    """
-                elif "Tutorial" in content_type:
-                    # ... (Keep existing or refine)
-                    type_instructions = """
-                    **Structure (Tutorial):**
-                    1. **Hook:** "How to [Achieve Outcome] in 3 Steps".
-                    2. **Step 1:** Actionable instruction.
-                    3. **Step 2:** Actionable instruction.
-                    4. **Step 3:** Actionable instruction.
-                    5. **CTA:** "Save this for later."
-                    """
-                # ... (Keep others)
+                type_instructions = """
+                **Structure (Success Story) - STRICTLY FOLLOW THIS:**
+                
+                **Slide 1: The Hook**
+                - Title: The main achievement (e.g., "How [Company] Scaled Social Impact with Odoo").
+                - Subtitle: "Success Story".
+                - Body: "Powered by Metamorphosis - Bangladesh's Leading Odoo Partner" (or similar context).
+                
+                **Slide 2: The Challenge**
+                - Title: "The Challenge".
+                - Subtitle: Context (e.g., "[Company] faced critical bottlenecks:").
+                - Body: A list of 3 specific pain points (e.g., "Manual processes", "Lack of data").
+                
+                **Slide 3: The Solution**
+                - Title: "The Solution".
+                - Subtitle: "Metamorphosis implemented a comprehensive Odoo ERP ecosystem:".
+                - Body: A list of 3 specific solutions (e.g., "Automated Manufacturing", "Real-time Dashboards").
+                
+                **Slide 4: The Result**
+                - Title: "The Result".
+                - Subtitle: "Measurable Business Growth".
+                - Body: LEAVE EMPTY.
+                - Stats: Extract 2 key metrics. Format: [{"value": "45%", "label": "Business Growth"}, {"value": "50%", "label": "Faster Process"}].
+                
+                **Slide 5: CTA**
+                - Title: "Ready to Transform Your Business?".
+                - Subtitle: "Partner with the experts who deliver results."
+                - Body: "Contact Metamorphosis".
+                """
 
                 final_prompt = f"""
                 {base_prompt}
