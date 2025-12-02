@@ -119,5 +119,5 @@ AI_SETTINGS = {
     "max_transcript_length": 15000,
     "fallback_enabled": True,
     "content_tone": ["Professional", "Casual", "Inspirational", "Educational"],
-    "models_priority": ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash']
+    "models_priority": ['gemini-3-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash']
 }

@@ -9,8 +9,8 @@ def verify_api_key(api_key):
     """
     try:
         genai.configure(api_key=api_key)
-        # Try models in order of preference (Updated for 2025)
-        models_to_try = ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash']
+        # Try models in order of preference (Updated December 2, 2025)
+        models_to_try = ['gemini-3-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash']
         
         for model_name in models_to_try:
             try:
@@ -163,8 +163,8 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
                 ]
                 """
                 
-                # Try models in sequence
-                models_to_try = ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash']
+                # Try models in sequence (Updated December 2, 2025)
+                models_to_try = ['gemini-3-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash']
                 last_exception = None
                 
                 for model_name in models_to_try:
