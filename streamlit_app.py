@@ -4,6 +4,7 @@ import shutil
 import uuid
 import zipfile
 from io import BytesIO
+from functools import lru_cache
 from carousel_generator import CarouselGenerator
 from youtube_extractor import get_transcript_text
 from content_processor import process_content, verify_api_key
@@ -325,6 +326,12 @@ with tab2:
         label_visibility="collapsed"
     )
 
+# Add caching for content processing
+@st.cache_data(show_spinner=False, ttl=3600)
+def cached_process_content(text, api_key_hash, content_type):
+    """Cached version of content processing to avoid regenerating same content"""
+    return process_content(text, api_key=api_key_hash if api_key_hash != "no_key" else None, content_type=content_type)
+
 if st.button("🚀 Analyze & Generate Content", type="primary", use_container_width=True):
     with st.spinner("🤖 AI is analyzing your content..."):
         # Fetch Text
@@ -339,11 +346,12 @@ if st.button("🚀 Analyze & Generate Content", type="primary", use_container_wi
                 st.stop()
         
         if text_content:
-            # Generate Content
-            content, error = process_content(
+            # Generate Content with caching
+            api_key_hash = api_key if api_key else "no_key"
+            content, error = cached_process_content(
                 text_content,
-                api_key=api_key,
-                content_type=content_type
+                api_key_hash,
+                content_type
             )
             
             if content:

@@ -83,8 +83,15 @@ class CarouselGenerator:
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--disable-software-rasterizer")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--disable-logging")
+        chrome_options.add_argument("--log-level=3")
         # Set window size large enough to fit the slide (1080x1080)
         chrome_options.add_argument("--window-size=1200,1200")
+        # Performance optimizations
+        chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+        chrome_options.page_load_strategy = 'eager'
         
         driver = None
         generated_files = []
@@ -100,7 +107,7 @@ class CarouselGenerator:
 
             # 3. Open File
             driver.get(f"file://{temp_html_path}")
-            time.sleep(1) # Wait for fonts/render
+            time.sleep(0.5) # Reduced wait time - Wait for fonts/render
             
             # 4. Screenshot each slide
             for i in range(len(slides_content)):
