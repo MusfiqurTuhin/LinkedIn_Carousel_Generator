@@ -38,14 +38,24 @@ class CarouselGenerator:
             print(f"Failed to download image: {e}")
         return None
 
-    def generate_all_slides(self, slides_content, output_dir, bg_image_url=None):
+    def generate_all_slides(self, slides_content, output_dir, bg_image_url=None, bg_opacity=0.15, bg_mode="Solid Color"):
         """
         Generates all slides at once by rendering a single HTML with all slides,
         then taking screenshots of each slide element.
         """
         # 1. Render HTML
         logo_b64 = self.get_logo_base64()
-        bg_image_b64 = self.get_image_base64_from_url(bg_image_url)
+        
+        # Handle local file paths vs URLs for background
+        bg_image_b64 = None
+        if bg_image_url:
+            if os.path.exists(bg_image_url):
+                # Local file
+                with open(bg_image_url, "rb") as img_file:
+                    bg_image_b64 = base64.b64encode(img_file.read()).decode('utf-8')
+            else:
+                # URL
+                bg_image_b64 = self.get_image_base64_from_url(bg_image_url)
         
         html_content = self.template.render(
             slides=slides_content,
@@ -54,7 +64,9 @@ class CarouselGenerator:
             font_name=self.font_name,
             author_handle=self.author_handle,
             logo_base64=logo_b64,
-            bg_image_base64=bg_image_b64
+            bg_image_base64=bg_image_b64,
+            bg_opacity=bg_opacity,
+            bg_mode=bg_mode
         )
         
         temp_html_path = os.path.abspath(os.path.join(output_dir, "temp_carousel.html"))

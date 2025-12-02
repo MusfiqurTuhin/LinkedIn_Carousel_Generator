@@ -145,16 +145,37 @@ if st.session_state.slides_content:
     st.markdown("---")
     st.header("📝 Review & Edit Plan")
     
-    # Thumbnail Option
-    use_thumbnail = False
-    if st.session_state.thumbnail_url:
-        st.markdown("### 🖼️ Visuals")
-        col_thumb, col_check = st.columns([1, 3])
-        with col_thumb:
-            st.image(st.session_state.thumbnail_url, width=150)
-        with col_check:
-            use_thumbnail = st.checkbox("Use Video Thumbnail as Background?", value=True, help="Adds the video thumbnail as a subtle background to all slides.")
+    # Background Options
+    st.markdown("### 🖼️ Background & Visuals")
     
+    bg_mode = st.radio(
+        "Background Style", 
+        ["Solid Color", "Gradient Pattern", "Video Thumbnail", "Custom Image"],
+        horizontal=True
+    )
+    
+    bg_image_url = None
+    bg_opacity = 0.15 # Default
+    
+    if bg_mode == "Video Thumbnail":
+        if st.session_state.thumbnail_url:
+            st.image(st.session_state.thumbnail_url, width=150)
+            bg_image_url = st.session_state.thumbnail_url
+            bg_opacity = st.slider("Thumbnail Opacity", 0.0, 1.0, 0.15, 0.05)
+        else:
+            st.warning("No video thumbnail available.")
+            
+    elif bg_mode == "Custom Image":
+        uploaded_bg = st.file_uploader("Upload Background Image", type=['png', 'jpg', 'jpeg'], key="bg_uploader")
+        if uploaded_bg:
+            st.image(uploaded_bg, width=150)
+            # We'll handle saving this later
+            bg_image_url = uploaded_bg 
+            bg_opacity = st.slider("Image Opacity", 0.0, 1.0, 0.15, 0.05)
+            
+    elif bg_mode == "Gradient Pattern":
+        st.info("Applies a subtle geometric pattern overlay.")
+        
     # Show Error if Fallback was used
     if 'error_msg' in st.session_state and st.session_state.error_msg:
         st.warning(f"⚠️ AI Generation Failed: {st.session_state.error_msg}")
@@ -235,12 +256,25 @@ if st.session_state.slides_content:
                 author_handle=author_handle
             )
             
-            # Pass thumbnail URL if selected
-            bg_image_url = st.session_state.thumbnail_url if use_thumbnail else None
+            # Handle Custom Image Upload
+            final_bg_image_url = bg_image_url
+            if bg_mode == "Custom Image" and bg_image_url:
+                # Save uploaded file to output dir
+                bg_path = os.path.join(output_dir, "bg_image.png")
+                with open(bg_path, "wb") as f:
+                    f.write(bg_image_url.getbuffer())
+                # Pass absolute path to generator (it handles paths too)
+                final_bg_image_url = os.path.abspath(bg_path)
             
             try:
                 # Use the UPDATED slides from the form
-                image_paths = generator.generate_all_slides(updated_slides, output_dir, bg_image_url=bg_image_url)
+                image_paths = generator.generate_all_slides(
+                    updated_slides, 
+                    output_dir, 
+                    bg_image_url=final_bg_image_url,
+                    bg_opacity=bg_opacity,
+                    bg_mode=bg_mode
+                )
             except Exception as e:
                 st.error(f"Generation Failed: {e}")
                 st.stop()
