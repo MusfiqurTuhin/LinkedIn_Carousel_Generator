@@ -17,6 +17,11 @@ st.markdown("""
         background-color: #f8f9fa;
     }
     
+    /* Ensure all text is visible */
+    .stMarkdown, .stText, p, span, div {
+        color: #1a1a1a !important;
+    }
+    
     /* Wizard Steps */
     .step-container {
         background: white;
@@ -30,7 +35,7 @@ st.markdown("""
     .step-header {
         font-size: 1.5rem;
         font-weight: 700;
-        color: #1a1a1a;
+        color: #1a1a1a !important;
         margin-bottom: 1.5rem;
         display: flex;
         align-items: center;
@@ -45,29 +50,25 @@ st.markdown("""
         transition: all 0.2s;
     }
     
-    .primary-btn {
-        background-color: #714B67 !important;
-        color: white !important;
-    }
-    
-    /* Sidebar */
+    /* Sidebar - ensure dark text */
     [data-testid="stSidebar"] {
         background-color: #ffffff;
         border-right: 1px solid #eee;
     }
     
-    /* Inputs */
-    .stTextInput>div>div>input {
-        border-radius: 10px;
+    [data-testid="stSidebar"] * {
+        color: #1a1a1a !important;
     }
     
-    /* Success Message */
-    .success-box {
-        padding: 1rem;
-        background-color: #d4edda;
-        color: #155724;
+    /* Inputs - dark text */
+    .stTextInput>div>div>input, .stTextArea textarea {
         border-radius: 10px;
-        margin-bottom: 1rem;
+        color: #1a1a1a !important;
+    }
+    
+    /* Labels */
+    label {
+        color: #1a1a1a !important;
     }
 </style>
 """, unsafe_allow_html=True)
