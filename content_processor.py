@@ -138,9 +138,12 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
     
     # Smarter Heuristic Fallback for Success Story
     # 1. Clean text
-    clean_text = re.sub(r'\[.*?\]', '', text) # Remove timestamps/notes
+    clean_text = re.sub(r'\[.*?\]', '', text) # Remove timestamps/notes [00:12]
+    clean_text = re.sub(r'>>', '', clean_text) # Remove speaker markers >>
+    clean_text = re.sub(r'\s+', ' ', clean_text).strip() # Remove extra whitespace/newlines
+    
     sentences = re.split(r'(?<=[.!?]) +', clean_text)
-    sentences = [s.strip() for s in sentences if len(s) > 20] # Filter short junk
+    sentences = [s.strip() for s in sentences if len(s) > 30] # Filter short junk
     
     # 2. Extract sections based on keywords (simple heuristic)
     challenges = [s for s in sentences if any(k in s.lower() for k in ["problem", "difficult", "issue", "challenge", "struggle", "lack", "manual"])]

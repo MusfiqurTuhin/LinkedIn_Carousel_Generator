@@ -126,8 +126,9 @@ if st.button("🔍 Analyze Video & Plan Content", type="primary"):
             content, error_msg = process_content(text, api_key=api_key, content_type=content_type)
             
             if error_msg:
-                st.warning(f"⚠️ AI Generation Failed: {error_msg}")
-                st.info("Using 'Basic Mode' fallback content. Please edit manually.")
+                st.session_state.error_msg = error_msg
+            else:
+                st.session_state.error_msg = None
             
             if content:
                 st.session_state.slides_content = content
@@ -139,7 +140,13 @@ if st.button("🔍 Analyze Video & Plan Content", type="primary"):
 if st.session_state.slides_content:
     st.markdown("---")
     st.header("📝 Review & Edit Plan")
-    st.info("Edit the text below before generating the final images.")
+    
+    # Show Error if Fallback was used
+    if 'error_msg' in st.session_state and st.session_state.error_msg:
+        st.warning(f"⚠️ AI Generation Failed: {st.session_state.error_msg}")
+        st.info("Using 'Basic Mode' fallback content. Please edit manually.")
+    else:
+        st.info("Edit the text below before generating the final images.")
     
     updated_slides = []
     for i, slide in enumerate(st.session_state.slides_content):
