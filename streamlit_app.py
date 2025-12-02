@@ -53,22 +53,36 @@ with st.sidebar:
     st.info("Built for Metamorphosis & Odoo Partners.")
 
 # Main Content
-url = st.text_input("🔗 YouTube Video URL", placeholder="https://youtube.com/watch?v=...")
+tab1, tab2 = st.tabs(["📺 YouTube Video", "📝 Manual Text"])
+
+text = ""
+
+with tab1:
+    url = st.text_input("🔗 YouTube Video URL", placeholder="https://youtube.com/watch?v=...")
+    if url:
+        st.info("Note: If the video has no captions, use the 'Manual Text' tab.")
+
+with tab2:
+    manual_text = st.text_area("Paste Transcript or Content Here", height=200, placeholder="Paste the video transcript, a blog post, or any text you want to turn into a carousel.")
 
 if st.button("Generate Carousel"):
-    if not url:
-        st.error("Please enter a YouTube URL.")
-    else:
-        with st.spinner("🔍 Analyzing video transcript..."):
-            # 1. Get Transcript
-            try:
-                text = get_transcript_text(url)
-                if not text:
-                    st.error("Could not fetch transcript. Please check the URL or try a video with captions.")
+    with st.spinner("Processing..."):
+        # Determine source
+        if manual_text:
+            text = manual_text
+        elif url:
+            with st.spinner("🔍 Fetching transcript..."):
+                try:
+                    text = get_transcript_text(url)
+                    if not text:
+                        st.error("Could not fetch transcript. This video might not have captions enabled, or YouTube is blocking the request. Please copy the transcript manually and use the 'Manual Text' tab.")
+                        st.stop()
+                except Exception as e:
+                    st.error(f"Error fetching transcript: {e}")
                     st.stop()
-            except Exception as e:
-                st.error(f"Error fetching transcript: {e}")
-                st.stop()
+        else:
+            st.error("Please provide a Video URL or Manual Text.")
+            st.stop()
 
         with st.spinner("🧠 Generating deep insights..."):
             # 2. Process Content (LLM)
