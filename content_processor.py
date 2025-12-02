@@ -32,26 +32,13 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
         return []
 
     error_msg = None
+    error_msg = None
     if api_key:
         try:
             if provider == "gemini":
                 genai.configure(api_key=api_key)
                 
-                # Try to use the best available model
-                model = None
-                for model_name in ['gemini-3-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash']:
-                    try:
-                        test_model = genai.GenerativeModel(model_name)
-                        # We don't generate here to save quota, just instantiate
-                        model = test_model
-                        break
-                    except:
-                        continue
-                
-                if not model:
-                    model = genai.GenerativeModel('gemini-2.5-flash') # Final fallback
-                
-                # Define prompts based on type
+                # Define prompts (same for all models)
                 base_prompt = f"""
                 You are a Viral LinkedIn Content Creator. Transform the following video transcript into a high-performing 5-slide carousel.
                 
@@ -111,30 +98,39 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
                 ]
                 """
                 
-                response = model.generate_content(final_prompt)
-                content = response.text
+                # Try models in sequence
+                models_to_try = ['gemini-3-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash']
+                last_exception = None
                 
-                # Robust JSON Extraction
-                try:
-                    # Find the first '[' and last ']'
-                    start_idx = content.find('[')
-                    end_idx = content.rfind(']')
-                    
-                    if start_idx != -1 and end_idx != -1:
-                        json_str = content[start_idx:end_idx+1]
-                        return json.loads(json_str), None # Success, No Error
-                    else:
-                        raise ValueError("No JSON array found in response")
+                for model_name in models_to_try:
+                    try:
+                        print(f"Trying model: {model_name}...")
+                        model = genai.GenerativeModel(model_name)
+                        response = model.generate_content(final_prompt)
+                        content = response.text
                         
-                except json.JSONDecodeError as je:
-                    error_msg = f"JSON Error: {je}"
-                    print(f"{error_msg}. Raw content: {content[:100]}...")
-                    raise # Re-raise to trigger fallback
+                        # Robust JSON Extraction
+                        start_idx = content.find('[')
+                        end_idx = content.rfind(']')
+                        
+                        if start_idx != -1 and end_idx != -1:
+                            json_str = content[start_idx:end_idx+1]
+                            return json.loads(json_str), None # Success!
+                        else:
+                            raise ValueError("No JSON array found")
+                            
+                    except Exception as e:
+                        print(f"Model {model_name} failed: {e}")
+                        last_exception = e
+                        continue # Try next model
+                
+                # If we get here, all models failed
+                if last_exception:
+                    raise last_exception
                     
         except Exception as e:
-            error_msg = f"LLM Error: {e}"
+            error_msg = f"All models failed. Last error: {e}"
             print(f"{error_msg}. Falling back to heuristic.")
-            # In a real app, we might want to return the error to the UI
     
     # Smarter Heuristic Fallback for Success Story
     # 1. Clean text
