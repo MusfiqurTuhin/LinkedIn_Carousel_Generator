@@ -9,8 +9,8 @@ def verify_api_key(api_key):
     """
     try:
         genai.configure(api_key=api_key)
-        # Try models in order of preference
-        models_to_try = ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
+        # Try models in order of preference (Dec 2025 Update)
+        models_to_try = ['gemini-3-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash']
         
         for model_name in models_to_try:
             try:
@@ -20,7 +20,7 @@ def verify_api_key(api_key):
             except:
                 continue
                 
-        return False, "Key valid but no supported models found (tried 1.5-pro, 1.5-flash, pro)."
+        return False, "Key valid but no supported models found (tried 3.0, 2.5)."
     except Exception as e:
         return False, str(e)
 
@@ -38,7 +38,7 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
                 
                 # Try to use the best available model
                 model = None
-                for model_name in ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']:
+                for model_name in ['gemini-3-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash']:
                     try:
                         test_model = genai.GenerativeModel(model_name)
                         # We don't generate here to save quota, just instantiate
@@ -48,7 +48,7 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
                         continue
                 
                 if not model:
-                    model = genai.GenerativeModel('gemini-pro') # Final fallback
+                    model = genai.GenerativeModel('gemini-2.5-flash') # Final fallback
                 
                 # Define prompts based on type
                 base_prompt = f"""
