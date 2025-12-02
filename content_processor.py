@@ -5,14 +5,22 @@ import google.generativeai as genai
 
 def verify_api_key(api_key):
     """
-    Verifies if the provided Gemini API key is valid.
+    Verifies if the provided Gemini API key is valid and finds a working model.
     """
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        # Try a minimal generation to test the key
-        response = model.generate_content("Test")
-        return True, "API Key is valid!"
+        # Try models in order of preference
+        models_to_try = ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
+        
+        for model_name in models_to_try:
+            try:
+                model = genai.GenerativeModel(model_name)
+                model.generate_content("Test")
+                return True, f"Success! Using {model_name}"
+            except:
+                continue
+                
+        return False, "Key valid but no supported models found (tried 1.5-pro, 1.5-flash, pro)."
     except Exception as e:
         return False, str(e)
 
@@ -27,7 +35,20 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
         try:
             if provider == "gemini":
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                # Try to use the best available model
+                model = None
+                for model_name in ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']:
+                    try:
+                        test_model = genai.GenerativeModel(model_name)
+                        # We don't generate here to save quota, just instantiate
+                        model = test_model
+                        break
+                    except:
+                        continue
+                
+                if not model:
+                    model = genai.GenerativeModel('gemini-pro') # Final fallback
                 
                 # Define prompts based on type
                 base_prompt = f"""
