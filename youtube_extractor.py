@@ -48,6 +48,9 @@ def get_transcript_text(video_url):
                 if not found:
                     raise ValueError("No English subtitles found (manual or auto-generated).")
 
+            # Extract thumbnail URL
+            thumbnail_url = info.get('thumbnail')
+            
             # Download the subtitle content
             # Since we have the URL, we can fetch it using requests (lighter than letting yt-dlp write to disk and parsing)
             import requests
@@ -61,6 +64,7 @@ def get_transcript_text(video_url):
             # Let's try to parse it as simple text if it's VTT/SRT, or JSON if it looks like JSON.
             
             content = response.text
+            transcript_text = ""
             
             # Simple parsing logic
             if content.strip().startswith('{'):
@@ -73,25 +77,28 @@ def get_transcript_text(video_url):
                         segs = event.get('segs', [])
                         for seg in segs:
                             text_parts.append(seg.get('utf8', ''))
-                    return " ".join(text_parts).strip()
+                    transcript_text = " ".join(text_parts).strip()
                 except:
                     pass
             
-            # Fallback: Remove timestamps from VTT/SRT-like text
-            # This is a rough heuristic
-            lines = content.split('\n')
-            clean_lines = []
-            for line in lines:
-                line = line.strip()
-                if not line: continue
-                if '-->' in line: continue # Timestamp
-                if line.isdigit(): continue # Index
-                if line.startswith('WEBVTT'): continue
-                if line.startswith('Kind:'): continue
-                if line.startswith('Language:'): continue
-                clean_lines.append(line)
+            if not transcript_text:
+                # Fallback: Remove timestamps from VTT/SRT-like text
+                # This is a rough heuristic
+                lines = content.split('\n')
+                clean_lines = []
+                for line in lines:
+                    line = line.strip()
+                    if not line: continue
+                    if '-->' in line: continue # Timestamp
+                    if line.isdigit(): continue # Index
+                    if line.startswith('WEBVTT'): continue
+                    if line.startswith('Kind:'): continue
+                    if line.startswith('Language:'): continue
+                    clean_lines.append(line)
+                
+                transcript_text = " ".join(clean_lines)
             
-            return " ".join(clean_lines)
+            return transcript_text, thumbnail_url
 
     except Exception as e:
         raise ValueError(f"yt-dlp failed: {str(e)}")

@@ -26,20 +26,35 @@ class CarouselGenerator:
                 return base64.b64encode(img_file.read()).decode('utf-8')
         return None
 
-    def generate_all_slides(self, slides_content, output_dir):
+    def get_image_base64_from_url(self, url):
+        if not url:
+            return None
+        try:
+            import requests
+            response = requests.get(url)
+            if response.status_code == 200:
+                return base64.b64encode(response.content).decode('utf-8')
+        except Exception as e:
+            print(f"Failed to download image: {e}")
+        return None
+
+    def generate_all_slides(self, slides_content, output_dir, bg_image_url=None):
         """
         Generates all slides at once by rendering a single HTML with all slides,
         then taking screenshots of each slide element.
         """
         # 1. Render HTML
         logo_b64 = self.get_logo_base64()
+        bg_image_b64 = self.get_image_base64_from_url(bg_image_url)
+        
         html_content = self.template.render(
             slides=slides_content,
             primary_color=self.primary_color,
             secondary_color=self.secondary_color,
             font_name=self.font_name,
             author_handle=self.author_handle,
-            logo_base64=logo_b64
+            logo_base64=logo_b64,
+            bg_image_base64=bg_image_b64
         )
         
         temp_html_path = os.path.abspath(os.path.join(output_dir, "temp_carousel.html"))

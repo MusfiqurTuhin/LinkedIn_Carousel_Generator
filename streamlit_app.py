@@ -94,16 +94,20 @@ content_type = "Success Story"
 # Session State for Content
 if 'slides_content' not in st.session_state:
     st.session_state.slides_content = None
+if 'thumbnail_url' not in st.session_state:
+    st.session_state.thumbnail_url = None
 
 if st.button("🔍 Analyze Video & Plan Content", type="primary"):
     with st.spinner("Processing Transcript..."):
         # 1. Get Text
         if manual_text:
             text = manual_text
+            st.session_state.thumbnail_url = None
         elif url:
             with st.spinner("Fetching transcript..."):
                 try:
-                    text = get_transcript_text(url)
+                    text, thumbnail_url = get_transcript_text(url)
+                    st.session_state.thumbnail_url = thumbnail_url
                     if not text:
                         st.error("Transcript is empty. Please use Manual Text.")
                         st.stop()
@@ -140,6 +144,16 @@ if st.button("🔍 Analyze Video & Plan Content", type="primary"):
 if st.session_state.slides_content:
     st.markdown("---")
     st.header("📝 Review & Edit Plan")
+    
+    # Thumbnail Option
+    use_thumbnail = False
+    if st.session_state.thumbnail_url:
+        st.markdown("### 🖼️ Visuals")
+        col_thumb, col_check = st.columns([1, 3])
+        with col_thumb:
+            st.image(st.session_state.thumbnail_url, width=150)
+        with col_check:
+            use_thumbnail = st.checkbox("Use Video Thumbnail as Background?", value=True, help="Adds the video thumbnail as a subtle background to all slides.")
     
     # Show Error if Fallback was used
     if 'error_msg' in st.session_state and st.session_state.error_msg:
@@ -221,9 +235,12 @@ if st.session_state.slides_content:
                 author_handle=author_handle
             )
             
+            # Pass thumbnail URL if selected
+            bg_image_url = st.session_state.thumbnail_url if use_thumbnail else None
+            
             try:
                 # Use the UPDATED slides from the form
-                image_paths = generator.generate_all_slides(updated_slides, output_dir)
+                image_paths = generator.generate_all_slides(updated_slides, output_dir, bg_image_url=bg_image_url)
             except Exception as e:
                 st.error(f"Generation Failed: {e}")
                 st.stop()
