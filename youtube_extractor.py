@@ -1,14 +1,11 @@
-from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 from urllib.parse import urlparse, parse_qs
 
 def get_video_id(url):
     """
-    Examples:
-    - http://youtu.be/SA2iWivDJiE
-    - http://www.youtube.com/watch?v=_oPAwA_Udwc&feature=feedu
-    - http://www.youtube.com/embed/SA2iWivDJiE
-    - http://www.youtube.com/v/SA2iWivDJiE?version=3&amp;hl=en_US
+    Extracts video ID from various YouTube URL formats.
     """
+    if not url: return None
     query = urlparse(url)
     if query.hostname == 'youtu.be':
         return query.path[1:]
@@ -20,7 +17,6 @@ def get_video_id(url):
             return query.path.split('/')[2]
         if query.path[:3] == '/v/':
             return query.path.split('/')[2]
-    # fail?
     return None
 
 def get_transcript_text(video_url):
@@ -29,30 +25,86 @@ def get_transcript_text(video_url):
         raise ValueError("Invalid YouTube URL")
     
     try:
-        # Instantiate the API
-        ytt_api = YouTubeTranscriptApi()
-        
-        # Use the fetch method which is a shortcut for list().find().fetch()
-        # It defaults to ['en']
-        transcript_data = ytt_api.fetch(video_id)
-        
-        # The fetch method returns a FetchedTranscript object? 
-        # Help says -> FetchedTranscript. 
-        # But usually fetch() returns the list of dicts directly in older versions.
-        # Let's check if it returns a list or object. 
-        # The help says "-> FetchedTranscript".
-        # But the example says "print(transcript.fetch())" which usually prints the list.
-        # Let's assume it returns the list of dicts based on standard behavior, 
-        # or if it returns an object, we might need to access .data or similar.
-        # Wait, the help says: "Retrieves the transcript... This is just a shortcut for calling ... .fetch()"
-        # And .fetch() on a Transcript object returns the list of dicts.
-        # So ytt_api.fetch(video_id) should return the list of dicts.
-        
-        # Combine text
-        # In this version, it returns objects with .text attribute
-        full_text = " ".join([t.text for t in transcript_data])
-        return full_text
+        # Method 1: Try the standard static method (most common usage)
+        # This automatically looks for 'en' (manual then generated)
+        try:
+            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+            return " ".join([t['text'] for t in transcript_list])
+        except AttributeError:
+            # If static method doesn't exist (version mismatch), proceed to instance method
+            pass
+        except Exception as e:
+            # If get_transcript fails (e.g. translation needed), try list_transcripts
+            print(f"Standard get_transcript failed: {e}")
+            pass
 
+        # Method 2: Use list_transcripts (Instance or Static depending on version)
+        # We try to instantiate first as we saw earlier it might be a class
+        try:
+            ytt = YouTubeTranscriptApi()
+            if hasattr(ytt, 'list_transcripts'):
+                transcript_list = ytt.list_transcripts(video_id)
+            else:
+                # Try static
+                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        except Exception:
+            # Fallback for older versions or static-only
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+
+        # Iterate to find the best transcript
+        transcript = None
+        
+        # 1. Try Manual English
+        try:
+            transcript = transcript_list.find_manually_created_transcript(['en'])
+        except:
+            pass
+            
+        # 2. Try Generated English
+        if not transcript:
+            try:
+                transcript = transcript_list.find_generated_transcript(['en'])
+            except:
+                pass
+        
+        # 3. Try Any English (Translated?)
+        if not transcript:
+            try:
+                transcript = transcript_list.find_transcript(['en'])
+            except:
+                pass
+
+        # 4. Fallback: Take the first available and translate to English
+        if not transcript:
+            try:
+                # Just get the first one
+                first_transcript = next(iter(transcript_list))
+                # Translate to English
+                transcript = first_transcript.translate('en')
+            except Exception as e:
+                print(f"Translation failed: {e}")
+                # If translation fails, just use the original
+                transcript = next(iter(transcript_list))
+
+        # Fetch the data
+        # Note: In some versions fetch() returns objects, in others dicts.
+        # We handle both.
+        data = transcript.fetch()
+        
+        full_text = ""
+        for item in data:
+            if isinstance(item, dict):
+                full_text += item['text'] + " "
+            elif hasattr(item, 'text'):
+                full_text += item.text + " "
+            else:
+                full_text += str(item) + " "
+                
+        return full_text.strip()
+
+    except TranscriptsDisabled:
+        raise ValueError("Subtitles are disabled for this video.")
+    except NoTranscriptFound:
+        raise ValueError("No transcript found for this video.")
     except Exception as e:
-        print(f"Error fetching transcript: {e}")
-        return None
+        raise ValueError(f"Could not fetch transcript: {str(e)}")

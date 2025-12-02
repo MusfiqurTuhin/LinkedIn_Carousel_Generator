@@ -75,10 +75,14 @@ if st.button("Generate Carousel"):
                 try:
                     text = get_transcript_text(url)
                     if not text:
-                        st.error("Could not fetch transcript. This video might not have captions enabled, or YouTube is blocking the request. Please copy the transcript manually and use the 'Manual Text' tab.")
+                        st.error("Transcript is empty. Please use Manual Text.")
                         st.stop()
+                except ValueError as ve:
+                    st.error(f"Transcript Error: {ve}")
+                    st.info("💡 Tip: You can copy the transcript manually from YouTube description/captions and use the 'Manual Text' tab.")
+                    st.stop()
                 except Exception as e:
-                    st.error(f"Error fetching transcript: {e}")
+                    st.error(f"Unexpected Error: {e}")
                     st.stop()
         else:
             st.error("Please provide a Video URL or Manual Text.")
