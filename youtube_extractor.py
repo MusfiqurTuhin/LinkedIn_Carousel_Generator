@@ -24,77 +24,81 @@ def get_transcript_text(video_url):
     if not video_id:
         raise ValueError("Invalid YouTube URL")
     
+    transcript_data = None
+    
     try:
-        # Method 1: Try the standard static method (most common usage)
-        # This automatically looks for 'en' (manual then generated)
-        try:
-            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-            return " ".join([t['text'] for t in transcript_list])
-        except AttributeError:
-            # If static method doesn't exist (version mismatch), proceed to instance method
-            pass
-        except Exception as e:
-            # If get_transcript fails (e.g. translation needed), try list_transcripts
-            print(f"Standard get_transcript failed: {e}")
-            pass
-
-        # Method 2: Use list_transcripts (Instance or Static depending on version)
-        # We try to instantiate first as we saw earlier it might be a class
-        try:
-            ytt = YouTubeTranscriptApi()
-            if hasattr(ytt, 'list_transcripts'):
-                transcript_list = ytt.list_transcripts(video_id)
-            else:
-                # Try static
-                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-        except Exception:
-            # Fallback for older versions or static-only
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-
-        # Iterate to find the best transcript
-        transcript = None
-        
-        # 1. Try Manual English
-        try:
-            transcript = transcript_list.find_manually_created_transcript(['en'])
-        except:
-            pass
-            
-        # 2. Try Generated English
-        if not transcript:
+        # Strategy 1: Try Standard Static Method (Common in v0.6.x)
+        if hasattr(YouTubeTranscriptApi, 'get_transcript'):
             try:
-                transcript = transcript_list.find_generated_transcript(['en'])
-            except:
-                pass
-        
-        # 3. Try Any English (Translated?)
-        if not transcript:
-            try:
-                transcript = transcript_list.find_transcript(['en'])
-            except:
-                pass
+                transcript_data = YouTubeTranscriptApi.get_transcript(video_id)
+            except Exception:
+                pass # Fall through to next strategy
 
-        # 4. Fallback: Take the first available and translate to English
-        if not transcript:
+        # Strategy 2: Try Instance Methods (Found in v1.2.3)
+        if not transcript_data:
             try:
-                # Just get the first one
-                first_transcript = next(iter(transcript_list))
-                # Translate to English
-                transcript = first_transcript.translate('en')
+                ytt = YouTubeTranscriptApi()
+                
+                # Check for 'list' method (v1.2.3)
+                if hasattr(ytt, 'list'):
+                    transcript_list = ytt.list(video_id)
+                    # Try to find English or first available
+                    try:
+                        transcript = transcript_list.find_transcript(['en'])
+                    except:
+                        # If find_transcript fails or doesn't exist, iterate
+                        if hasattr(transcript_list, 'find_transcript'):
+                             try:
+                                 transcript = transcript_list.find_transcript(['en'])
+                             except:
+                                 transcript = next(iter(transcript_list))
+                        else:
+                             # If transcript_list is just a list/iterable
+                             transcript = next(iter(transcript_list))
+                    
+                    # Fetch
+                    if hasattr(transcript, 'fetch'):
+                        transcript_data = transcript.fetch()
+                    else:
+                        transcript_data = transcript # Maybe it's already data?
+                
+                # Check for 'fetch' shortcut (v1.2.3)
+                elif hasattr(ytt, 'fetch'):
+                    transcript_data = ytt.fetch(video_id)
+                
             except Exception as e:
-                print(f"Translation failed: {e}")
-                # If translation fails, just use the original
-                transcript = next(iter(transcript_list))
+                print(f"Instance method failed: {e}")
+                pass
 
-        # Fetch the data
-        # Note: In some versions fetch() returns objects, in others dicts.
-        # We handle both.
-        data = transcript.fetch()
-        
+        # Strategy 3: Try Static list_transcripts (Newer Standard)
+        if not transcript_data and hasattr(YouTubeTranscriptApi, 'list_transcripts'):
+            try:
+                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                try:
+                    transcript = transcript_list.find_transcript(['en'])
+                except:
+                    transcript = next(iter(transcript_list))
+                transcript_data = transcript.fetch()
+            except Exception:
+                pass
+
+        if not transcript_data:
+            raise ValueError("Could not retrieve transcript using any known method.")
+
+        # Process Data (Handle dicts vs objects)
         full_text = ""
-        for item in data:
+        # Ensure it's iterable
+        if not isinstance(transcript_data, (list, tuple)):
+            # If it's a single object, maybe it has text?
+            if hasattr(transcript_data, 'text'):
+                 return transcript_data.text
+            else:
+                 # Maybe it's a string?
+                 return str(transcript_data)
+
+        for item in transcript_data:
             if isinstance(item, dict):
-                full_text += item['text'] + " "
+                full_text += item.get('text', '') + " "
             elif hasattr(item, 'text'):
                 full_text += item.text + " "
             else:
