@@ -90,6 +90,9 @@ if st.button("Generate Carousel"):
 
         with st.spinner("🧠 Generating deep insights..."):
             # 2. Process Content (LLM)
+            if not api_key:
+                st.warning("⚠️ No API Key provided. Using Basic Mode (Keyword Extraction). For professional AI summaries, please enter a Gemini API Key in the sidebar.")
+            
             slides_content = process_content(text, api_key=api_key)
             if not slides_content:
                 st.error("Failed to generate content.")
