@@ -9,8 +9,8 @@ def verify_api_key(api_key):
     """
     try:
         genai.configure(api_key=api_key)
-        # Try models in order of preference (Dec 2025 Update)
-        models_to_try = ['gemini-3-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash']
+        # Try models in order of preference (Updated for 2025)
+        models_to_try = ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash']
         
         for model_name in models_to_try:
             try:
@@ -20,35 +20,28 @@ def verify_api_key(api_key):
             except:
                 continue
                 
-        return False, "Key valid but no supported models found (tried 3.0, 2.5)."
+        return False, "Key valid but no supported models found."
     except Exception as e:
         return False, str(e)
 
 def process_content(text, api_key=None, provider="gemini", content_type="Success Story"):
     """
     Analyzes the transcript using an LLM to generate structured carousel content.
+    Supports multiple content types with specialized prompts.
     """
     if not text:
-        return []
+        return [], "No text provided"
 
     error_msg = None
-    error_msg = None
+    
     if api_key:
         try:
             if provider == "gemini":
                 genai.configure(api_key=api_key)
                 
-                # Define prompts (same for all models)
-                base_prompt = f"""
-                You are a Viral LinkedIn Content Creator. Transform the following video transcript into a high-performing 5-slide carousel.
-                
-                Transcript:
-                {text[:15000]}
-                
-                **Goal:** Create a Success Story carousel.
-                """
-                
-                type_instructions = """
+                # Define content-type-specific prompts
+                prompts = {
+                    "Success Story": """
                 **Structure (Success Story) - STRICTLY FOLLOW THIS:**
                 
                 **Slide 1: The Hook**
@@ -74,10 +67,81 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
                 
                 **Slide 5: CTA**
                 - Title: "Ready to Transform Your Business?".
-                - Subtitle: "Partner with the experts who deliver results."
+                - Subtitle: "Partner with the experts who deliver results.".
                 - Body: "Contact Metamorphosis".
+                """,
+                    
+                    "Tutorial": """
+                **Structure (Tutorial) - STRICTLY FOLLOW THIS:**
+                
+                **Slide 1: Introduction**
+                - Title: Main topic (e.g., "Master [Skill/Topic] in 5 Steps").
+                - Subtitle: "Step-by-Step Guide".
+                - Body: Brief intro about what they'll learn.
+                
+                **Slide 2-4: Steps**
+                - Title: "Step [N]: [Action]" (e.g., "Step 1: Setup Your Environment").
+                - Subtitle: Brief description.
+                - Body: 2-3 bullet points with specific actions.
+                
+                **Slide 5: Conclusion**
+                - Title: "You're Ready!".
+                - Subtitle: "Key Takeaways".
+                - Body: 2-3 summary points or next steps.
+                """,
+                    
+                    "Tips & Tricks": """
+                **Structure (Tips & Tricks) - STRICTLY FOLLOW THIS:**
+                
+                **Slide 1: Hook**
+                - Title: Attention-grabbing statement (e.g., "10X Your Productivity").
+                - Subtitle: "Pro Tips You Need to Know".
+                - Body: Brief intro.
+                
+                **Slide 2-4: Tips**
+                - Title: "Tip [N]: [Short Title]".
+                - Subtitle: Category or context.
+                - Body: 2-3 actionable bullet points.
+                
+                **Slide 5: Bonus**
+                - Title: "Bonus Tip" or "Common Mistakes to Avoid".
+                - Subtitle: Extra value.
+                - Body: Final wisdom or CTA.
+                """,
+                    
+                    "Data Insights": """
+                **Structure (Data Insights) - STRICTLY FOLLOW THIS:**
+                
+                **Slide 1: Hook**
+                - Title: Main insight (e.g., "The State of [Industry] in 2025").
+                - Subtitle: "Data-Driven Insights".
+                - Body: Brief context.
+                
+                **Slide 2-4: Key Stats**
+                - Title: "[Stat Category]".
+                - Subtitle: Context.
+                - Stats: [{"value": "XXX", "label": "Description"}] - Use this format for visual impact.
+                
+                **Slide 5: Takeaway**
+                - Title: "What This Means".
+                - Subtitle: "Key Implications".
+                - Body: 2-3 actionable insights.
                 """
-
+                }
+                
+                # Get the appropriate prompt structure
+                type_instructions = prompts.get(content_type, prompts["Success Story"])
+                
+                # Base prompt
+                base_prompt = f"""
+                You are a Viral LinkedIn Content Creator. Transform the following content into a high-performing 5-slide carousel.
+                
+                Content:
+                {text[:15000]}
+                
+                **Goal:** Create a {content_type} carousel.
+                """
+                
                 final_prompt = f"""
                 {base_prompt}
                 {type_instructions}
@@ -85,6 +149,7 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
                 **Style Guide:**
                 - Punchy, direct, no fluff.
                 - Use emojis where appropriate.
+                - Make it scannable and engaging.
                 
                 **Output JSON format ONLY:**
                 [
@@ -92,14 +157,14 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
                         "title": "Slide Title", 
                         "subtitle": "Slide Subtitle", 
                         "body": "Body text or List of strings",
-                        "stats": [{{"value": "45%", "label": "Growth"}}] // OPTIONAL: Only for Result slide
+                        "stats": [{{"value": "45%", "label": "Growth"}}] // OPTIONAL: Only for Result/Stats slides
                     }},
                     ...
                 ]
                 """
                 
                 # Try models in sequence
-                models_to_try = ['gemini-3-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash']
+                models_to_try = ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash']
                 last_exception = None
                 
                 for model_name in models_to_try:
@@ -129,7 +194,7 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
                     raise last_exception
                     
         except Exception as e:
-            error_msg = f"All models failed. Last error: {e}"
+            error_msg = f"AI generation failed: {str(e)}"
             print(f"{error_msg}. Falling back to heuristic.")
     
     # Smarter Heuristic Fallback for Success Story

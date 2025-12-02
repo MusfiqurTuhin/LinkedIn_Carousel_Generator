@@ -2,75 +2,220 @@ import streamlit as st
 import os
 import shutil
 import uuid
+import zipfile
+from io import BytesIO
 from carousel_generator import CarouselGenerator
 from youtube_extractor import get_transcript_text
 from content_processor import process_content, verify_api_key
+from config import COLOR_SCHEMES, FONT_OPTIONS, BACKGROUND_MODES, CONTENT_TYPES, DEFAULT_SETTINGS
 
 # Page Config
-st.set_page_config(page_title="LinkedIn Carousel Generator", page_icon="✨", layout="wide")
+st.set_page_config(
+    page_title="LinkedIn Carousel Generator", 
+    page_icon="✨", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# --- Custom CSS for Premium UI ---
+# --- Premium CSS ---
 st.markdown("""
 <style>
-    /* Main Background */
+    /* Global Styles */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    
+    :root {
+        --primary: #714B67;
+        --secondary: #017E84;
+        --accent: #FF6B35;
+        --bg-light: #F8FAFC;
+        --bg-dark: #0F172A;
+        --glass: rgba(255, 255, 255, 0.7);
+        --shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+    }
+    
     .stApp {
-        background-color: #f8f9fa;
+        background: linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%);
+        font-family: 'Inter', sans-serif;
     }
     
-    /* Ensure all text is visible */
-    .stMarkdown, .stText, p, span, div {
-        color: #1a1a1a !important;
-    }
+    /* Hide Streamlit Branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
     
-    /* Wizard Steps */
-    .step-container {
-        background: white;
+    /* Header */
+    .main-header {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
         padding: 2rem;
-        border-radius: 1rem;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        border-radius: 20px;
         margin-bottom: 2rem;
-        border: 1px solid #eee;
+        box-shadow: var(--shadow);
+        text-align: center;
     }
     
-    .step-header {
+    .main-header h1 {
+        color: white;
+        font-size: 3rem;
+        font-weight: 800;
+        margin: 0;
+        letter-spacing: -1px;
+    }
+    
+    .main-header p {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.2rem;
+        margin-top: 0.5rem;
+    }
+    
+    /* Cards */
+    .card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .card-header {
         font-size: 1.5rem;
         font-weight: 700;
-        color: #1a1a1a !important;
-        margin-bottom: 1.5rem;
+        color: #1E293B;
+        margin-bottom: 1rem;
         display: flex;
         align-items: center;
         gap: 0.5rem;
     }
     
+    /* Step Indicator */
+    .step-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        border-radius: 50%;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+    
     /* Buttons */
-    .stButton>button {
-        border-radius: 50px;
+    .stButton > button {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 2rem;
         font-weight: 600;
-        padding: 0.5rem 2rem;
-        transition: all 0.2s;
+        font-size: 1rem;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(113, 75, 103, 0.3);
     }
     
-    /* Sidebar - ensure dark text */
-    [data-testid="stSidebar"] {
-        background-color: #ffffff;
-        border-right: 1px solid #eee;
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(113, 75, 103, 0.4);
     }
     
-    [data-testid="stSidebar"] * {
-        color: #1a1a1a !important;
+    /* Inputs */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div > select {
+        border-radius: 12px;
+        border: 2px solid #E2E8F0;
+        padding: 0.75rem;
+        font-size: 1rem;
     }
     
-    /* Inputs - dark text */
-    .stTextInput>div>div>input, .stTextArea textarea {
-        border-radius: 10px;
-        color: #1a1a1a !important;
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(113, 75, 103, 0.1);
     }
     
-    /* Labels */
-    label {
-        color: #1a1a1a !important;
+    /* Color Pickers */
+    .color-picker-container {
+        display: flex;
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+    
+    /* Expander */
+    .streamlit-expanderHeader {
+        background: #F8FAFC;
+        border-radius: 12px;
+        font-weight: 600;
+        color: #1E293B;
+    }
+    
+    /* Success/Error Messages */
+    .stSuccess {
+        background: linear-gradient(135deg, #10B981, #059669);
+        color: white;
+        border-radius: 12px;
+        padding: 1rem;
+    }
+    
+    .stError {
+        background: linear-gradient(135deg, #EF4444, #DC2626);
+        color: white;
+        border-radius: 12px;
+        padding: 1rem;
+    }
+    
+    /* Preview Container */
+    .preview-container {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+    
+    /* Sidebar */
+    .sidebar .sidebar-content {
+        background: white;
+    }
+    
+    /* Download Section */
+    .download-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    /* Tooltips */
+    .tooltip {
+        position: relative;
+        display: inline-block;
+        cursor: help;
+    }
+    
+    /* Animation */
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .card {
+        animation: slideIn 0.5s ease-out;
     }
 </style>
+""", unsafe_allow_html=True)
+
+# Main Header
+st.markdown("""
+    <div class="main-header">
+        <h1>✨ AI Carousel Generator</h1>
+        <p>Create stunning LinkedIn carousels in seconds with AI-powered content generation</p>
+    </div>
 """, unsafe_allow_html=True)
 
 # --- Sidebar: Global Settings ---
@@ -78,194 +223,320 @@ with st.sidebar:
     st.markdown("### ⚙️ Global Settings")
     
     # API Key
-    api_key = st.text_input("Gemini API Key", type="password", help="Required for AI generation.")
+    api_key = st.text_input("🔑 Gemini API Key", type="password", help="Required for AI-powered content generation")
     if api_key:
-        if st.button("Verify Key", key="verify_btn"):
-            with st.spinner("Checking..."):
-                is_valid, message = verify_api_key(api_key)
-                if is_valid:
-                    st.success("✅ Valid Key")
+        if st.button("✓ Verify Key", use_container_width=True):
+            with st.spinner("Verifying..."):
+                success, msg = verify_api_key(api_key)
+                if success:
+                    st.success(f"✓ {msg}")
                 else:
-                    st.error(f"❌ Invalid: {message}")
+                    st.error(f"✗ {msg}")
     
-    st.markdown("---")
-    st.markdown("### 🎨 Brand Assets")
-    logo_file = st.file_uploader("Upload Logo", type=['png', 'jpg', 'jpeg'])
-    author_handle = st.text_input("Handle / Website", "@metamorphosis")
+    st.divider()
     
-    st.markdown("---")
-    st.markdown("### 🌈 Brand Colors")
-    col1, col2 = st.columns(2)
-    with col1:
-        primary_color = st.color_picker("Primary", "#714B67")
-        bg_color = st.color_picker("Background", "#FFFFFF")
-    with col2:
-        secondary_color = st.color_picker("Secondary", "#017E84")
-        text_color = st.color_picker("Text", "#333333")
+    # Content Type Selection
+    st.markdown("### 📋 Content Type")
+    content_type = st.selectbox(
+        "Template",
+        list(CONTENT_TYPES.keys()),
+        index=0,
+        help="Choose the type of carousel content"
+    )
+    st.caption(CONTENT_TYPES[content_type]["description"])
     
-    font_choice = st.selectbox("Font", ["Inter", "Roboto", "Poppins"])
+    st.divider()
+    
+    # Design Settings
+    st.markdown("### 🎨 Design Settings")
+    
+    # Color Scheme
+    color_scheme_name = st.selectbox(
+        "Color Scheme",
+        list(COLOR_SCHEMES.keys()),
+        index=0
+    )
+    scheme = COLOR_SCHEMES[color_scheme_name]
+    st.caption(f"🎨 {scheme['description']}")
+    
+    # Custom Colors Option
+    use_custom_colors = st.checkbox("🎨 Use Custom Colors")
+    if use_custom_colors:
+        col1, col2 = st.columns(2)
+        with col1:
+            primary_color = st.color_picker("Primary", scheme['primary'])
+        with col2:
+            secondary_color = st.color_picker("Secondary", scheme['secondary'])
+    else:
+        primary_color = scheme['primary']
+        secondary_color = scheme['secondary']
+    
+    # Font Selection
+    font_name = st.selectbox(
+        "Font Family",
+        list(FONT_OPTIONS.keys()),
+        index=0
+    )
+    st.caption(f"✍️ {FONT_OPTIONS[font_name]['description']}")
+    
+    st.divider()
+    
+    # Branding
+    st.markdown("### 🏷️ Branding")
+    author_handle = st.text_input("Author Handle", DEFAULT_SETTINGS['author_handle'])
+    brand_name = st.text_input("Brand Name", DEFAULT_SETTINGS['brand_name'])
+    
+# Initialize Session State
+if 'step' not in st.session_state:
+    st.session_state.step = 1
+if 'slides_content' not in st.session_state:
+    st.session_state.slides_content = None
+if 'generated_paths' not in st.session_state:
+    st.session_state.generated_paths = None
+if 'thumbnail_url' not in st.session_state:
+    st.session_state.thumbnail_url = None
 
-# --- Main Content: Wizard ---
-st.title("✨ AI Carousel Generator")
-st.markdown("Create premium LinkedIn carousels in seconds.")
-
-# Session State
-if 'step' not in st.session_state: st.session_state.step = 1
-if 'slides_content' not in st.session_state: st.session_state.slides_content = None
-if 'thumbnail_url' not in st.session_state: st.session_state.thumbnail_url = None
-
-# Step 1: Source
-st.markdown('<div class="step-container">', unsafe_allow_html=True)
-st.markdown('<div class="step-header">1️⃣ Content Source</div>', unsafe_allow_html=True)
+# --- STEP 1: Content Source ---
+st.markdown('<div class="card">', unsafe_allow_html=True)
+st.markdown('<div class="card-header"><span class="step-badge">1</span> Content Source</div>', unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["📺 YouTube Video", "📝 Manual Text"])
+
 text_content = ""
 
 with tab1:
-    url = st.text_input("YouTube URL", placeholder="https://youtube.com/watch?v=...")
-with tab2:
-    manual_text = st.text_area("Paste Text", height=150)
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        url = st.text_input(
+            "YouTube URL",
+            placeholder="https://youtube.com/watch?v=...",
+            label_visibility="collapsed"
+        )
+    with col2:
+        if url:
+            st.image(f"https://img.youtube.com/vi/{url.split('v=')[-1].split('&')[0]}/mqdefault.jpg", 
+                    use_container_width=True)
 
-if st.button("Analyze & Generate Plan ➔", type="primary", use_container_width=True):
-    with st.spinner("Analyzing content..."):
+with tab2:
+    manual_text = st.text_area(
+        "Paste your content here",
+        height=200,
+        placeholder="Enter the text content you want to transform into a carousel...",
+        label_visibility="collapsed"
+    )
+
+if st.button("🚀 Analyze & Generate Content", type="primary", use_container_width=True):
+    with st.spinner("🤖 AI is analyzing your content..."):
         # Fetch Text
         if manual_text:
             text_content = manual_text
-            st.session_state.thumbnail_url = None
         elif url:
-            try:
-                text_content, thumb = get_transcript_text(url)
-                st.session_state.thumbnail_url = thumb
-            except Exception as e:
-                st.error(f"Error: {e}")
+            text_content = get_transcript_text(url)
+            if text_content:
+                st.session_state.thumbnail_url = f"https://img.youtube.com/vi/{url.split('v=')[-1].split('&')[0]}/maxresdefault.jpg"
+            else:
+                st.error("❌ Could not fetch transcript. Check the URL or try manual text.")
                 st.stop()
         
-        if not text_content:
-            st.error("Please provide content.")
-            st.stop()
+        if text_content:
+            # Generate Content
+            content, error = process_content(
+                text_content,
+                api_key=api_key,
+                content_type=content_type
+            )
             
-        # Generate
-        content, error = process_content(text_content, api_key=api_key, content_type="Success Story")
-        
-        if content:
-            st.session_state.slides_content = content
-            st.session_state.step = 2
-            st.rerun()
+            if content:
+                st.session_state.slides_content = content
+                st.session_state.step = 2
+                st.success("✅ Content generated successfully!")
+                st.rerun()
+            else:
+                st.error(f"❌ Generation Failed: {error}")
         else:
-            st.error(f"Generation Failed: {error}")
+            st.warning("⚠️ Please provide content via YouTube URL or manual text input.")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Step 2: Review & Edit
+# --- STEP 2: Review & Edit ---
 if st.session_state.slides_content:
-    st.markdown('<div class="step-container">', unsafe_allow_html=True)
-    st.markdown('<div class="step-header">2️⃣ Review Content</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="card-header"><span class="step-badge">2</span> Review & Edit Content</div>', unsafe_allow_html=True)
     
     updated_slides = []
+    
+    cols = st.columns(min(len(st.session_state.slides_content), 3))
+    
     for i, slide in enumerate(st.session_state.slides_content):
-        with st.expander(f"Slide {i+1}: {slide.get('title', 'Untitled')}", expanded=(i==0)):
+        with st.expander(f"📄 Slide {i+1}: {slide.get('title', 'Untitled')}", expanded=(i==0)):
             col1, col2 = st.columns([1, 2])
+            
             with col1:
-                sub = st.text_input(f"Subtitle {i+1}", slide.get('subtitle', ''))
-                tit = st.text_input(f"Title {i+1}", slide.get('title', ''))
+                sub = st.text_input(f"Subtitle {i+1}", slide.get('subtitle', ''), key=f"sub_{i}")
+                
             with col2:
-                if 'stats' in slide:
-                    st.caption("Stats (Value | Label)")
-                    new_stats = []
-                    for j, stat in enumerate(slide['stats']):
-                        c1, c2 = st.columns(2)
-                        v = c1.text_input(f"Val {i}_{j}", stat.get('value', ''))
-                        l = c2.text_input(f"Lbl {i}_{j}", stat.get('label', ''))
-                        new_stats.append({"value": v, "label": l})
-                    updated_slides.append({"subtitle": sub, "title": tit, "stats": new_stats, "body": ""})
-                else:
-                    b_val = slide.get('body', '')
-                    if isinstance(b_val, list): b_val = "\n".join(b_val)
-                    body = st.text_area(f"Body {i+1}", b_val)
-                    body_list = [x.strip() for x in body.split('\n') if x.strip()]
-                    updated_slides.append({"subtitle": sub, "title": tit, "body": body_list})
+                tit = st.text_input(f"Title {i+1}", slide.get('title', ''), key=f"tit_{i}")
+            
+            # Body
+            if isinstance(slide.get('body'), list):
+                body = st.text_area(
+                    f"Body {i+1}",
+                    '\n'.join(slide['body']),
+                    height=120,
+                    key=f"body_{i}",
+                    help="Separate bullet points with new lines"
+                )
+                body_list = [x.strip() for x in body.split('\n') if x.strip()]
+                updated_slides.append({
+                    "subtitle": sub,
+                    "title": tit,
+                    "body": body_list,
+                    "stats": slide.get('stats')
+                })
+            else:
+                body = st.text_area(f"Body {i+1}", slide.get('body', ''), height=100, key=f"body_{i}")
+                updated_slides.append({
+                    "subtitle": sub,
+                    "title": tit,
+                    "body": body,
+                    "stats": slide.get('stats')
+                })
     
     st.session_state.final_slides = updated_slides
     st.markdown('</div>', unsafe_allow_html=True)
-
-    # Step 3: Visuals
-    st.markdown('<div class="step-container">', unsafe_allow_html=True)
-    st.markdown('<div class="step-header">3️⃣ Visual Style</div>', unsafe_allow_html=True)
     
-    bg_mode = st.radio("Background", ["Gradient Pattern", "Solid Color", "Video Thumbnail", "Custom Image"], horizontal=True)
+    # --- STEP 3: Visual Customization ---
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="card-header"><span class="step-badge">3</span> Visual Customization</div>', unsafe_allow_html=True)
     
-    bg_url = None
-    bg_opacity = 0.15
+    col1, col2, col3 = st.columns(3)
     
-    if bg_mode == "Video Thumbnail":
-        if st.session_state.thumbnail_url:
-            st.image(st.session_state.thumbnail_url, width=200)
-            bg_url = st.session_state.thumbnail_url
-            bg_opacity = st.slider("Opacity", 0.0, 1.0, 0.15)
-        else:
-            st.warning("No thumbnail available.")
-            
-    elif bg_mode == "Custom Image":
-        up_bg = st.file_uploader("Upload Background", type=['png', 'jpg'])
-        if up_bg:
-            st.image(up_bg, width=200)
-            bg_url = up_bg
-            bg_opacity = st.slider("Opacity", 0.0, 1.0, 0.15)
-
+    with col1:
+        st.markdown("**Background Mode**")
+        bg_mode = st.selectbox(
+            "Mode",
+            list(BACKGROUND_MODES.keys()),
+            index=1,
+            label_visibility="collapsed"
+        )
+        st.caption(BACKGROUND_MODES[bg_mode])
+    
+    with col2:
+        st.markdown("**Logo Upload**")
+        logo_file = st.file_uploader("Logo", type=['png', 'jpg', 'jpeg'], label_visibility="collapsed")
+        if logo_file:
+            st.image(logo_file, width=100)
+    
+    with col3:
+        st.markdown("**Background Image**")
+        bg_url = None
+        bg_opacity = 0.15
+        
+        if bg_mode == "Uploaded Image":
+            up_bg = st.file_uploader("Background", type=['png', 'jpg'], label_visibility="collapsed")
+            if up_bg:
+                st.image(up_bg, width=100)
+                bg_url = up_bg
+                bg_opacity = st.slider("Opacity", 0.0, 1.0, 0.15)
+    
     if st.button("✨ Generate Carousel", type="primary", use_container_width=True):
-        with st.spinner("Rendering High-Res Images..."):
+        with st.spinner("🎨 Rendering high-resolution images..."):
             session_id = str(uuid.uuid4())
             out_dir = os.path.join("output", session_id)
             os.makedirs(out_dir, exist_ok=True)
             
-            # Save Assets
-            l_path = None
+            # Save Logo
+            logo_path = None
             if logo_file:
-                l_path = os.path.join(out_dir, "logo.png")
-                with open(l_path, "wb") as f: f.write(logo_file.getbuffer())
-                
-            final_bg_url = bg_url
-            if bg_mode == "Custom Image" and bg_url:
-                b_path = os.path.join(out_dir, "bg.png")
-                with open(b_path, "wb") as f: f.write(bg_url.getbuffer())
-                final_bg_url = os.path.abspath(b_path)
+                logo_filename = f"logo_{session_id}.png"
+                logo_path = os.path.join(out_dir, logo_filename)
+                with open(logo_path, "wb") as f:
+                    f.write(logo_file.getbuffer())
+            
+            # Save Background
+            bg_path = None
+            if bg_url:
+                bg_filename = f"bg_{session_id}.png"
+                bg_path = os.path.join(out_dir, bg_filename)
+                with open(bg_path, "wb") as f:
+                    f.write(bg_url.getbuffer())
             
             # Generate
-            gen = CarouselGenerator(l_path, primary_color, secondary_color, font_choice, author_handle)
             try:
-                paths = gen.generate_all_slides(
-                    st.session_state.final_slides, 
-                    out_dir, 
-                    bg_image_url=final_bg_url, 
-                    bg_opacity=bg_opacity, 
+                generator = CarouselGenerator(
+                    logo_path=logo_path,
+                    brand_color=primary_color,
+                    secondary_color=secondary_color,
+                    font_name=font_name,
+                    author_handle=author_handle,
+                    brand_name=brand_name
+                )
+                
+                paths = generator.generate_all_slides(
+                    st.session_state.final_slides,
+                    out_dir,
+                    bg_image_url=bg_path,
+                    bg_opacity=bg_opacity,
                     bg_mode=bg_mode
                 )
+                
                 st.session_state.generated_paths = paths
                 st.session_state.output_dir = out_dir
+                st.success("✅ Carousel generated successfully!")
                 st.rerun()
+                
             except Exception as e:
-                st.error(f"Error: {e}")
-
+                st.error(f"❌ Error: {str(e)}")
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Step 4: Results
+# --- STEP 4: Download Results ---
 if 'generated_paths' in st.session_state and st.session_state.generated_paths:
-    st.markdown('<div class="step-container">', unsafe_allow_html=True)
-    st.markdown('<div class="step-header">🎉 Your Carousel is Ready!</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="card-header"><span class="step-badge">4</span> Download Your Carousel</div>', unsafe_allow_html=True)
     
-    # Zip
-    shutil.make_archive(os.path.join(st.session_state.output_dir, "carousel"), 'zip', st.session_state.output_dir)
-    with open(os.path.join(st.session_state.output_dir, "carousel.zip"), "rb") as f:
-        st.download_button("📦 Download All (ZIP)", f, "carousel.zip", "application/zip", type="primary")
+    # Create ZIP
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for i, path in enumerate(st.session_state.generated_paths):
+            zip_file.write(path, f"slide_{i+1}.png")
     
-    st.markdown("---")
+    zip_buffer.seek(0)
     
-    # Gallery
-    cols = st.columns(3)
+    col1, col2 = st.columns([1, 3])
+    
+    with col1:
+        st.download_button(
+            "📦 Download All (ZIP)",
+            zip_buffer,
+            f"linkedin_carousel_{uuid.uuid4().hex[:8]}.zip",
+            "application/zip",
+            use_container_width=True
+        )
+    
+    with col2:
+        st.info(f"✅ Generated {len(st.session_state.generated_paths)} slides at 1080x1080px")
+    
+    # Preview Grid
+    st.markdown("### Preview")
+    cols = st.columns(min(len(st.session_state.generated_paths), 3))
+    
     for i, path in enumerate(st.session_state.generated_paths):
         with cols[i % 3]:
-            st.image(path, caption=f"Slide {i+1}")
+            st.image(path, caption=f"Slide {i+1}", use_container_width=True)
             with open(path, "rb") as f:
-                st.download_button(f"⬇️ Slide {i+1}", f, f"slide_{i+1}.png", "image/png")
-                
+                st.download_button(
+                    f"⬇️ Download",
+                    f,
+                    f"slide_{i+1}.png",
+                    "image/png",
+                    key=f"download_{i}",
+                    use_container_width=True
+                )
+    
     st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Reset Button
+    if st.button("🔄 Create Another Carousel", use_container_width=True):
+        st.session_state.clear()
+        st.rerun()

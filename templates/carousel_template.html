@@ -40,7 +40,7 @@
             }
 
             ;
-            --font-family: 'Inter',
+            --font-family: '{{ font_name }}',
             sans-serif;
             --glass-bg: rgba(255, 255, 255, 0.7);
             --glass-border: rgba(255, 255, 255, 0.5);
@@ -84,9 +84,15 @@
             animation: float 20s infinite alternate;
 
             display: {
-                    {
-                    'block' if bg_mode=='Gradient Pattern' else 'none'
-                }
+                % if bg_mode=='Gradient Pattern' %
+            }
+
+            block {
+                % else %
+            }
+
+            none {
+                % endif %
             }
 
             ;
@@ -287,6 +293,7 @@
             font-size: 90px;
             font-weight: 900;
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             line-height: 1;
@@ -374,7 +381,7 @@
                     {% if logo_base64 %}
                     <img src="data:image/png;base64,{{ logo_base64 }}" alt="Logo" class="logo-img">
                     {% endif %}
-                    <span class="brand-name">Metamorphosis</span>
+                    <span class="brand-name">{{ brand_name }}</span>
                 </div>
                 <div class="page-indicator">{{ "%02d"|format(loop.index) }} / {{ "%02d"|format(slides|length) }}</div>
             </div>
