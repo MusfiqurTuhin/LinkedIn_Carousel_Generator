@@ -42,32 +42,52 @@ st.markdown("<p style='text-align: center; color: #666;'>Turn any YouTube video 
 # Sidebar for Inputs
 with st.sidebar:
     st.header("⚙️ Configuration")
-    api_key = st.text_input("Gemini API Key (Optional)", type="password", help="Enter your Google Gemini API Key for deep analysis. If left blank, a basic summarizer will be used.")
-    logo_file = st.file_uploader("Upload Brand Logo", type=['png', 'jpg', 'jpeg'])
+    api_key = st.text_input("Gemini API Key (Recommended)", type="password", help="Required for 'Smart' content generation.")
     
     st.markdown("---")
-    st.markdown("### 🎨 Brand Colors")
-    primary_color = st.color_picker("Primary Color", "#714B67")
+    st.markdown("### 🎨 Design & Branding")
     
+    # Brand Identity
+    logo_file = st.file_uploader("Upload Brand Logo", type=['png', 'jpg', 'jpeg'])
+    author_handle = st.text_input("LinkedIn Handle/Website", "@metamorphosis", help="Shown in the footer")
+    
+    # Colors
+    col1, col2 = st.columns(2)
+    with col1:
+        primary_color = st.color_picker("Primary Color", "#714B67") # Odoo Purple
+        bg_color = st.color_picker("Background", "#FFFFFF")
+    with col2:
+        secondary_color = st.color_picker("Secondary Color", "#017E84") # Odoo Teal
+        text_color = st.color_picker("Text Color", "#333333")
+        
+    # Font
+    font_choice = st.selectbox("Font Style", ["Inter", "Roboto", "Poppins", "Merriweather"])
+
     st.markdown("---")
     st.info("Built for Metamorphosis & Odoo Partners.")
 
 # Main Content
+st.markdown("### 1. Content Source")
 tab1, tab2 = st.tabs(["📺 YouTube Video", "📝 Manual Text"])
 
 text = ""
-
 with tab1:
-    url = st.text_input("🔗 YouTube Video URL", placeholder="https://youtube.com/watch?v=...")
-    if url:
-        st.info("Note: If the video has no captions, use the 'Manual Text' tab.")
+    url = st.text_input("YouTube Video URL", placeholder="https://youtube.com/watch?v=...")
+    if url: st.caption("We'll extract the transcript automatically.")
 
 with tab2:
-    manual_text = st.text_area("Paste Transcript or Content Here", height=200, placeholder="Paste the video transcript, a blog post, or any text you want to turn into a carousel.")
+    manual_text = st.text_area("Paste Text Content", height=150, placeholder="Paste a blog post, transcript, or rough notes here.")
 
-if st.button("Generate Carousel"):
+st.markdown("### 2. Carousel Type")
+content_type = st.selectbox(
+    "Choose the goal of this carousel:",
+    ["Success Story (Problem/Solution)", "Tutorial (Step-by-Step)", "Educational (Deep Dive)", "Video Takeaway (Summary)"],
+    index=0
+)
+
+if st.button("✨ Generate Carousel", type="primary"):
     with st.spinner("Processing..."):
-        # Determine source
+        # 1. Get Text
         if manual_text:
             text = manual_text
         elif url:
@@ -79,7 +99,7 @@ if st.button("Generate Carousel"):
                         st.stop()
                 except ValueError as ve:
                     st.error(f"Transcript Error: {ve}")
-                    st.info("💡 Tip: You can copy the transcript manually from YouTube description/captions and use the 'Manual Text' tab.")
+                    st.info("💡 Tip: Use the 'Manual Text' tab.")
                     st.stop()
                 except Exception as e:
                     st.error(f"Unexpected Error: {e}")
@@ -88,32 +108,36 @@ if st.button("Generate Carousel"):
             st.error("Please provide a Video URL or Manual Text.")
             st.stop()
 
-        with st.spinner("🧠 Generating deep insights..."):
-            # 2. Process Content (LLM)
+        # 2. Process Content (LLM)
+        with st.spinner("🧠 Analyzing & Writing Copy..."):
             if not api_key:
-                st.warning("⚠️ No API Key provided. Using Basic Mode (Keyword Extraction). For professional AI summaries, please enter a Gemini API Key in the sidebar.")
+                st.warning("⚠️ No API Key. Using Basic Mode. Add Gemini Key for premium content.")
             
-            slides_content = process_content(text, api_key=api_key)
+            slides_content = process_content(text, api_key=api_key, content_type=content_type)
             if not slides_content:
                 st.error("Failed to generate content.")
                 st.stop()
 
-        with st.spinner("🎨 Designing premium slides..."):
-            # 3. Generate Images
-            # Setup directories
+        # 3. Generate Images
+        with st.spinner("🎨 Rendering Infographic Slides..."):
             session_id = str(uuid.uuid4())
             output_dir = os.path.join("output", session_id)
             os.makedirs(output_dir, exist_ok=True)
             
-            # Save logo if uploaded
             logo_path = None
             if logo_file:
                 logo_path = os.path.join(output_dir, "logo.png")
                 with open(logo_path, "wb") as f:
                     f.write(logo_file.getbuffer())
             
-            # Initialize Generator
-            generator = CarouselGenerator(logo_path=logo_path, brand_color=primary_color)
+            # Initialize Generator with new options
+            generator = CarouselGenerator(
+                logo_path=logo_path, 
+                brand_color=primary_color, 
+                secondary_color=secondary_color,
+                font_name=font_choice,
+                author_handle=author_handle
+            )
             
             try:
                 image_paths = generator.generate_all_slides(slides_content, output_dir)
@@ -122,24 +146,35 @@ if st.button("Generate Carousel"):
                 st.stop()
                 
         # 4. Display Results
-        st.success("🎉 Carousel Generated Successfully!")
+        st.success("🎉 Carousel Ready!")
         
-        # Display in a grid
-        cols = st.columns(len(image_paths))
-        for idx, col in enumerate(cols):
-            with col:
-                st.image(image_paths[idx], caption=f"Slide {idx+1}", use_container_width=True)
+        # Display in a grid with individual download buttons
+        for idx, img_path in enumerate(image_paths):
+            col_img, col_btn = st.columns([3, 1])
+            with col_img:
+                st.image(img_path, caption=f"Slide {idx+1}", use_container_width=True)
+            with col_btn:
+                with open(img_path, "rb") as f:
+                    st.download_button(
+                        label=f"⬇️ Slide {idx+1}",
+                        data=f,
+                        file_name=f"slide_{idx+1}.png",
+                        mime="image/png",
+                        key=f"btn_{idx}"
+                    )
         
         # Zip Download
         shutil.make_archive(os.path.join(output_dir, "carousel"), 'zip', output_dir)
         zip_path = os.path.join(output_dir, "carousel.zip")
         
+        st.markdown("---")
         with open(zip_path, "rb") as f:
             st.download_button(
-                label="⬇️ Download All Images (ZIP)",
+                label="📦 Download Full Carousel (ZIP)",
                 data=f,
                 file_name="linkedin_carousel.zip",
-                mime="application/zip"
+                mime="application/zip",
+                type="primary"
             )
 
 st.markdown("---")

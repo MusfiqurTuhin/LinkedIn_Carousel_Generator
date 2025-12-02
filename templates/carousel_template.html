@@ -30,7 +30,8 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: '{{ font_name }}',
+            sans-serif;
             margin: 0;
             padding: 0;
             background-color: #f0f0f0;
@@ -47,13 +48,29 @@
             box-sizing: border-box;
         }
 
+        /* Infographic Background Pattern */
         .slide-bg {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, rgba(113, 75, 103, 0.05) 0%, rgba(1, 126, 132, 0.05) 100%);
+            background: radial-gradient(circle at 10% 20%, rgba(113, 75, 103, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(1, 126, 132, 0.05) 0%, transparent 20%);
+            z-index: 0;
+        }
+
+        /* Decorative Shape */
+        .slide::after {
+            content: "";
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 200px;
+            height: 200px;
+            background: var(--primary-color);
+            opacity: 0.03;
+            border-radius: 50%;
             z-index: 0;
         }
 
@@ -122,20 +139,34 @@
 
         li {
             font-size: 32px;
-            margin-bottom: 25px;
-            padding-left: 50px;
+            margin-bottom: 30px;
+            padding-left: 60px;
             position: relative;
             color: var(--text-color);
             line-height: 1.4;
+            background: rgba(0, 0, 0, 0.02);
+            /* Subtle box for list items */
+            padding: 20px 20px 20px 70px;
+            border-radius: 15px;
         }
 
         li::before {
-            content: "•";
-            color: var(--secondary-color);
-            font-size: 48px;
+            content: "✓";
+            /* Checkmark for infographic feel */
+            color: var(--white);
+            background: var(--secondary-color);
+            font-size: 24px;
             position: absolute;
-            left: 0;
-            top: -10px;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
         }
 
         .footer {

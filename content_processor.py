@@ -3,7 +3,7 @@ import json
 import re
 import google.generativeai as genai
 
-def process_content(text, api_key=None, provider="gemini"):
+def process_content(text, api_key=None, provider="gemini", content_type="Video Takeaway (Summary)"):
     """
     Analyzes the transcript using an LLM to generate structured carousel content.
     """
@@ -16,38 +16,72 @@ def process_content(text, api_key=None, provider="gemini"):
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 
-                prompt = f"""
+                # Define prompts based on type
+                base_prompt = f"""
                 You are a Viral LinkedIn Content Creator. Transform the following video transcript into a high-performing 5-slide carousel.
                 
                 Transcript:
                 {text[:15000]}
                 
-                **Style Guide:**
-                - **Punchy & Direct:** Use short sentences. No fluff.
-                - **Hook-Driven:** Slide 1 must stop the scroll.
-                - **Value-First:** Slides 2-4 must give actionable advice or shocking stats.
-                - **Clear CTA:** Slide 5 must tell them exactly what to do next.
-                - **No Corporate Jargon:** Speak like a human.
+                **Goal:** Create a "{content_type}" carousel.
+                """
                 
-                **Slide Structure:**
-                1. **The Hook**: A contrarian statement or a "How to" title. Subtitle: The problem/context.
-                2. **The Insight**: The core concept or "Aha!" moment.
-                3. **The Method/Story**: How it works or what happened.
-                4. **The Result/Why it Matters**: Concrete benefit or takeaway.
-                5. **The CTA**: "Follow for more" or "Link in bio".
+                type_instructions = ""
+                if "Success Story" in content_type:
+                    type_instructions = """
+                    **Structure (Success Story):**
+                    1. **Hook:** The impressive result or transformation. (e.g., "How X grew 50%").
+                    2. **The Problem:** What was holding them back? (Pain points).
+                    3. **The Solution:** The specific strategy/tool used.
+                    4. **The Result:** Concrete numbers/stats.
+                    5. **CTA:** "Want similar results? Link in bio."
+                    """
+                elif "Tutorial" in content_type:
+                    type_instructions = """
+                    **Structure (Tutorial):**
+                    1. **Hook:** "How to [Achieve Outcome] in 3 Steps".
+                    2. **Step 1:** Actionable instruction.
+                    3. **Step 2:** Actionable instruction.
+                    4. **Step 3:** Actionable instruction.
+                    5. **CTA:** "Save this for later."
+                    """
+                elif "Educational" in content_type:
+                    type_instructions = """
+                    **Structure (Educational/Deep Dive):**
+                    1. **Hook:** A contrarian truth or "Everything you know about X is wrong".
+                    2. **Concept:** Explain the core concept simply.
+                    3. **Why it Matters:** The impact or consequence.
+                    4. **Example/Case:** Real world application.
+                    5. **CTA:** "Follow for more insights."
+                    """
+                else: # Video Takeaway
+                    type_instructions = """
+                    **Structure (Video Takeaway):**
+                    1. **Hook:** "I watched [Video Topic] so you don't have to."
+                    2. **Key Insight 1:** Most valuable point.
+                    3. **Key Insight 2:** Surprising fact.
+                    4. **Key Insight 3:** Actionable tip.
+                    5. **CTA:** "Watch the full video (Link in comments)."
+                    """
+
+                final_prompt = f"""
+                {base_prompt}
+                {type_instructions}
+                
+                **Style Guide:**
+                - Punchy, direct, no fluff.
+                - Use emojis where appropriate.
                 
                 **Output JSON format ONLY:**
                 [
-                    {{"title": "STOP DOING THIS", "subtitle": "Common Mistake", "body": "Here is why it kills your growth."}},
-                    {{"title": "The Better Way", "subtitle": "Strategy #1", "body": ["Step 1: Do X", "Step 2: Do Y"]}},
+                    {{"title": "Slide 1 Title", "subtitle": "Slide 1 Subtitle", "body": "Body text"}},
                     ...
                 ]
                 """
                 
-                response = model.generate_content(prompt)
+                response = model.generate_content(final_prompt)
                 content = response.text
                 content = re.sub(r'```json\n|\n```', '', content)
-                # Clean up any potential markdown formatting in the JSON string
                 content = content.strip()
                 if content.startswith('```'): content = content[3:]
                 if content.endswith('```'): content = content[:-3]

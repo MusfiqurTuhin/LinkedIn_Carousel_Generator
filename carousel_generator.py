@@ -9,10 +9,12 @@ from selenium.webdriver.chrome.service import Service
 import time
 
 class CarouselGenerator:
-    def __init__(self, logo_path, brand_color=None):
+    def __init__(self, logo_path, brand_color=None, secondary_color=None, font_name="Inter", author_handle="@metamorphosis"):
         self.logo_path = logo_path
         self.primary_color = brand_color if brand_color else "#714B67"
-        self.secondary_color = "#017E84"
+        self.secondary_color = secondary_color if secondary_color else "#017E84"
+        self.font_name = font_name
+        self.author_handle = author_handle
         
         # Setup Jinja2
         self.env = Environment(loader=FileSystemLoader('templates'))
@@ -35,6 +37,8 @@ class CarouselGenerator:
             slides=slides_content,
             primary_color=self.primary_color,
             secondary_color=self.secondary_color,
+            font_name=self.font_name,
+            author_handle=self.author_handle,
             logo_base64=logo_b64
         )
         
