@@ -85,13 +85,17 @@ content_type = st.selectbox(
     index=0
 )
 
-if st.button("✨ Generate Carousel", type="primary"):
-    with st.spinner("Processing..."):
+# Session State for Content
+if 'slides_content' not in st.session_state:
+    st.session_state.slides_content = None
+
+if st.button("🔍 Analyze Video & Plan Content", type="primary"):
+    with st.spinner("Processing Transcript..."):
         # 1. Get Text
         if manual_text:
             text = manual_text
         elif url:
-            with st.spinner("🔍 Fetching transcript..."):
+            with st.spinner("Fetching transcript..."):
                 try:
                     text = get_transcript_text(url)
                     if not text:
@@ -109,17 +113,56 @@ if st.button("✨ Generate Carousel", type="primary"):
             st.stop()
 
         # 2. Process Content (LLM)
-        with st.spinner("🧠 Analyzing & Writing Copy..."):
+        with st.spinner("🧠 Drafting Content Plan..."):
             if not api_key:
-                st.warning("⚠️ No API Key. Using Basic Mode. Add Gemini Key for premium content.")
+                st.warning("⚠️ No API Key. Using Basic Mode.")
             
-            slides_content = process_content(text, api_key=api_key, content_type=content_type)
-            if not slides_content:
+            content = process_content(text, api_key=api_key, content_type=content_type)
+            if content:
+                st.session_state.slides_content = content
+                st.rerun() # Rerun to show the editor
+            else:
                 st.error("Failed to generate content.")
-                st.stop()
 
-        # 3. Generate Images
-        with st.spinner("🎨 Rendering Infographic Slides..."):
+# Review & Edit Section
+if st.session_state.slides_content:
+    st.markdown("---")
+    st.header("📝 Review & Edit Plan")
+    st.info("Edit the text below before generating the final images.")
+    
+    updated_slides = []
+    for i, slide in enumerate(st.session_state.slides_content):
+        with st.expander(f"Slide {i+1}: {slide.get('title', 'Untitled')}", expanded=True):
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                subtitle = st.text_input(f"Subtitle {i+1}", slide.get('subtitle', ''))
+                title = st.text_input(f"Title {i+1}", slide.get('title', ''))
+            with col2:
+                # Handle body as list or string
+                body_val = slide.get('body', '')
+                if isinstance(body_val, list):
+                    body_val = "\n".join(body_val)
+                
+                body = st.text_area(f"Body Text {i+1}", body_val, height=100, help="Enter bullet points on new lines.")
+                
+                # Convert back to list if it looks like a list
+                if "\n" in body:
+                    body_final = [line.strip() for line in body.split("\n") if line.strip()]
+                else:
+                    body_final = body
+            
+            updated_slides.append({
+                "subtitle": subtitle,
+                "title": title,
+                "body": body_final
+            })
+    
+    # Update session state with edits (optional, but good for persistence)
+    # st.session_state.slides_content = updated_slides 
+
+    st.markdown("---")
+    if st.button("✨ Generate Final Images", type="primary"):
+        with st.spinner("🎨 Rendering High-Quality Slides..."):
             session_id = str(uuid.uuid4())
             output_dir = os.path.join("output", session_id)
             os.makedirs(output_dir, exist_ok=True)
@@ -130,7 +173,7 @@ if st.button("✨ Generate Carousel", type="primary"):
                 with open(logo_path, "wb") as f:
                     f.write(logo_file.getbuffer())
             
-            # Initialize Generator with new options
+            # Initialize Generator
             generator = CarouselGenerator(
                 logo_path=logo_path, 
                 brand_color=primary_color, 
@@ -140,15 +183,16 @@ if st.button("✨ Generate Carousel", type="primary"):
             )
             
             try:
-                image_paths = generator.generate_all_slides(slides_content, output_dir)
+                # Use the UPDATED slides from the form
+                image_paths = generator.generate_all_slides(updated_slides, output_dir)
             except Exception as e:
                 st.error(f"Generation Failed: {e}")
                 st.stop()
                 
-        # 4. Display Results
+        # Display Results
         st.success("🎉 Carousel Ready!")
         
-        # Display in a grid with individual download buttons
+        # Grid Display
         for idx, img_path in enumerate(image_paths):
             col_img, col_btn = st.columns([3, 1])
             with col_img:
