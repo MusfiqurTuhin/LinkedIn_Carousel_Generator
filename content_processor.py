@@ -3,7 +3,20 @@ import json
 import re
 import google.generativeai as genai
 
-def process_content(text, api_key=None, provider="gemini", content_type="Video Takeaway (Summary)"):
+def verify_api_key(api_key):
+    """
+    Verifies if the provided Gemini API key is valid.
+    """
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Try a minimal generation to test the key
+        response = model.generate_content("Test")
+        return True, "API Key is valid!"
+    except Exception as e:
+        return False, str(e)
+
+def process_content(text, api_key=None, provider="gemini", content_type="Success Story"):
     """
     Analyzes the transcript using an LLM to generate structured carousel content.
     """

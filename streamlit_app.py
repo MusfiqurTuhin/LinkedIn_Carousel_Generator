@@ -44,6 +44,15 @@ with st.sidebar:
     st.header("⚙️ Configuration")
     api_key = st.text_input("Gemini API Key (Recommended)", type="password", help="Required for 'Smart' content generation.")
     
+    if api_key:
+        if st.button("Verify Key"):
+            with st.spinner("Checking API Key..."):
+                is_valid, message = verify_api_key(api_key)
+                if is_valid:
+                    st.success(message)
+                else:
+                    st.error(f"Invalid Key: {message}")
+    
     st.markdown("---")
     st.markdown("### 🎨 Design & Branding")
     
