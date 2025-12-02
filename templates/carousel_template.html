@@ -247,7 +247,14 @@
             <h1>{{ slide.title }}</h1>
             {% endif %}
 
-            {% if slide.body %}
+            {% if slide.stats %}
+            {% for stat in slide.stats %}
+            <div class="stat-box">
+                <span class="stat-number">{{ stat.value }}</span>
+                <span class="stat-label">{{ stat.label }}</span>
+            </div>
+            {% endfor %}
+            {% elif slide.body %}
             {% if slide.body is string %}
             <p>{{ slide.body }}</p>
             {% if loop.last %}
@@ -264,7 +271,7 @@
         </div>
 
         <div class="footer">
-            <div class="website">metamorphosis.com.bd</div>
+            <div class="website">{{ author_handle }}</div>
             <div>
                 {% if loop.last %}
                 Link in bio

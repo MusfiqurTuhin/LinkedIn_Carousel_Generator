@@ -29,14 +29,36 @@ def process_content(text, api_key=None, provider="gemini", content_type="Video T
                 type_instructions = ""
                 if "Success Story" in content_type:
                     type_instructions = """
-                    **Structure (Success Story):**
-                    1. **Hook:** The impressive result or transformation. (e.g., "How X grew 50%").
-                    2. **The Problem:** What was holding them back? (Pain points).
-                    3. **The Solution:** The specific strategy/tool used.
-                    4. **The Result:** Concrete numbers/stats.
-                    5. **CTA:** "Want similar results? Link in bio."
+                    **Structure (Success Story) - STRICTLY FOLLOW THIS:**
+                    
+                    **Slide 1: The Hook**
+                    - Title: The main achievement (e.g., "How [Company] Scaled Social Impact with Odoo").
+                    - Subtitle: "Success Story".
+                    - Body: "Powered by Metamorphosis - Bangladesh's Leading Odoo Partner" (or similar context).
+                    
+                    **Slide 2: The Challenge**
+                    - Title: "The Challenge".
+                    - Subtitle: Context (e.g., "[Company] faced critical bottlenecks:").
+                    - Body: A list of 3 specific pain points (e.g., "Manual processes", "Lack of data").
+                    
+                    **Slide 3: The Solution**
+                    - Title: "The Solution".
+                    - Subtitle: "Metamorphosis implemented a comprehensive Odoo ERP ecosystem:".
+                    - Body: A list of 3 specific solutions (e.g., "Automated Manufacturing", "Real-time Dashboards").
+                    
+                    **Slide 4: The Result**
+                    - Title: "The Result".
+                    - Subtitle: "Measurable Business Growth".
+                    - Body: LEAVE EMPTY.
+                    - Stats: Extract 2 key metrics. Format: [{"value": "45%", "label": "Business Growth"}, {"value": "50%", "label": "Faster Process"}].
+                    
+                    **Slide 5: CTA**
+                    - Title: "Ready to Transform Your Business?".
+                    - Subtitle: "Partner with the experts who deliver results."
+                    - Body: "Contact Metamorphosis".
                     """
                 elif "Tutorial" in content_type:
+                    # ... (Keep existing or refine)
                     type_instructions = """
                     **Structure (Tutorial):**
                     1. **Hook:** "How to [Achieve Outcome] in 3 Steps".
@@ -45,24 +67,7 @@ def process_content(text, api_key=None, provider="gemini", content_type="Video T
                     4. **Step 3:** Actionable instruction.
                     5. **CTA:** "Save this for later."
                     """
-                elif "Educational" in content_type:
-                    type_instructions = """
-                    **Structure (Educational/Deep Dive):**
-                    1. **Hook:** A contrarian truth or "Everything you know about X is wrong".
-                    2. **Concept:** Explain the core concept simply.
-                    3. **Why it Matters:** The impact or consequence.
-                    4. **Example/Case:** Real world application.
-                    5. **CTA:** "Follow for more insights."
-                    """
-                else: # Video Takeaway
-                    type_instructions = """
-                    **Structure (Video Takeaway):**
-                    1. **Hook:** "I watched [Video Topic] so you don't have to."
-                    2. **Key Insight 1:** Most valuable point.
-                    3. **Key Insight 2:** Surprising fact.
-                    4. **Key Insight 3:** Actionable tip.
-                    5. **CTA:** "Watch the full video (Link in comments)."
-                    """
+                # ... (Keep others)
 
                 final_prompt = f"""
                 {base_prompt}
@@ -74,7 +79,12 @@ def process_content(text, api_key=None, provider="gemini", content_type="Video T
                 
                 **Output JSON format ONLY:**
                 [
-                    {{"title": "Slide 1 Title", "subtitle": "Slide 1 Subtitle", "body": "Body text"}},
+                    {{
+                        "title": "Slide Title", 
+                        "subtitle": "Slide Subtitle", 
+                        "body": "Body text or List of strings",
+                        "stats": [{{"value": "45%", "label": "Growth"}}] // OPTIONAL: Only for Result slide
+                    }},
                     ...
                 ]
                 """

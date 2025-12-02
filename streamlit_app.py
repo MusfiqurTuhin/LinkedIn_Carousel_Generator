@@ -138,24 +138,45 @@ if st.session_state.slides_content:
                 subtitle = st.text_input(f"Subtitle {i+1}", slide.get('subtitle', ''))
                 title = st.text_input(f"Title {i+1}", slide.get('title', ''))
             with col2:
-                # Handle body as list or string
-                body_val = slide.get('body', '')
-                if isinstance(body_val, list):
-                    body_val = "\n".join(body_val)
-                
-                body = st.text_area(f"Body Text {i+1}", body_val, height=100, help="Enter bullet points on new lines.")
-                
-                # Convert back to list if it looks like a list
-                if "\n" in body:
-                    body_final = [line.strip() for line in body.split("\n") if line.strip()]
+                # Check for Stats (Success Story Result Slide)
+                if 'stats' in slide:
+                    st.caption("📊 Key Metrics (Value | Label)")
+                    current_stats = slide['stats']
+                    new_stats = []
+                    for j, stat in enumerate(current_stats):
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            val = st.text_input(f"Value {j+1} (Slide {i+1})", stat.get('value', ''))
+                        with c2:
+                            lbl = st.text_input(f"Label {j+1} (Slide {i+1})", stat.get('label', ''))
+                        new_stats.append({"value": val, "label": lbl})
+                    
+                    # Store stats, clear body
+                    updated_slides.append({
+                        "subtitle": subtitle,
+                        "title": title,
+                        "body": "",
+                        "stats": new_stats
+                    })
                 else:
-                    body_final = body
-            
-            updated_slides.append({
-                "subtitle": subtitle,
-                "title": title,
-                "body": body_final
-            })
+                    # Handle body as list or string
+                    body_val = slide.get('body', '')
+                    if isinstance(body_val, list):
+                        body_val = "\n".join(body_val)
+                    
+                    body = st.text_area(f"Body Text {i+1}", body_val, height=100, help="Enter bullet points on new lines.")
+                    
+                    # Convert back to list if it looks like a list
+                    if "\n" in body:
+                        body_final = [line.strip() for line in body.split("\n") if line.strip()]
+                    else:
+                        body_final = body
+                        
+                    updated_slides.append({
+                        "subtitle": subtitle,
+                        "title": title,
+                        "body": body_final
+                    })
     
     # Update session state with edits (optional, but good for persistence)
     # st.session_state.slides_content = updated_slides 
