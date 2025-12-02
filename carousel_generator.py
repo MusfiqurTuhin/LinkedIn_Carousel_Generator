@@ -61,6 +61,8 @@ class CarouselGenerator:
             slides=slides_content,
             primary_color=self.primary_color,
             secondary_color=self.secondary_color,
+            bg_color="#FFFFFF", # Default white bg for slides
+            text_color="#333333", # Default dark text
             font_name=self.font_name,
             author_handle=self.author_handle,
             logo_base64=logo_b64,

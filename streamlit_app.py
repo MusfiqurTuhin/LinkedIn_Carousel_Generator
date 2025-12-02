@@ -9,307 +9,262 @@ from content_processor import process_content, verify_api_key
 # Page Config
 st.set_page_config(page_title="LinkedIn Carousel Generator", page_icon="✨", layout="wide")
 
-# Custom CSS for "Premium" look
+# --- Custom CSS for Premium UI ---
 st.markdown("""
 <style>
+    /* Main Background */
     .stApp {
         background-color: #f8f9fa;
     }
-    .main-header {
-        font-family: 'Helvetica Neue', sans-serif;
-        color: #714B67;
-        text-align: center;
+    
+    /* Wizard Steps */
+    .step-container {
+        background: white;
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        margin-bottom: 2rem;
+        border: 1px solid #eee;
+    }
+    
+    .step-header {
+        font-size: 1.5rem;
         font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
+    
+    /* Buttons */
     .stButton>button {
-        background-color: #017E84;
-        color: white;
-        border-radius: 20px;
-        padding: 10px 25px;
-        border: none;
+        border-radius: 50px;
         font-weight: 600;
-        width: 100%;
+        padding: 0.5rem 2rem;
+        transition: all 0.2s;
     }
-    .stButton>button:hover {
-        background-color: #016064;
+    
+    .primary-btn {
+        background-color: #714B67 !important;
+        color: white !important;
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #ffffff;
+        border-right: 1px solid #eee;
+    }
+    
+    /* Inputs */
+    .stTextInput>div>div>input {
+        border-radius: 10px;
+    }
+    
+    /* Success Message */
+    .success-box {
+        padding: 1rem;
+        background-color: #d4edda;
+        color: #155724;
+        border-radius: 10px;
+        margin-bottom: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 class='main-header'>✨ AI LinkedIn Carousel Generator</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #666;'>Turn any YouTube video into a professional, industry-standard carousel in seconds.</p>", unsafe_allow_html=True)
-
-# Sidebar for Inputs
+# --- Sidebar: Global Settings ---
 with st.sidebar:
-    st.header("⚙️ Configuration")
-    api_key = st.text_input("Gemini API Key (Recommended)", type="password", help="Required for 'Smart' content generation.")
+    st.markdown("### ⚙️ Global Settings")
     
+    # API Key
+    api_key = st.text_input("Gemini API Key", type="password", help="Required for AI generation.")
     if api_key:
-        if st.button("Verify Key"):
-            with st.spinner("Checking API Key..."):
+        if st.button("Verify Key", key="verify_btn"):
+            with st.spinner("Checking..."):
                 is_valid, message = verify_api_key(api_key)
                 if is_valid:
-                    st.success(message)
+                    st.success("✅ Valid Key")
                 else:
-                    st.error(f"Invalid Key: {message}")
+                    st.error(f"❌ Invalid: {message}")
     
     st.markdown("---")
-    st.markdown("### 🎨 Design & Branding")
+    st.markdown("### 🎨 Brand Assets")
+    logo_file = st.file_uploader("Upload Logo", type=['png', 'jpg', 'jpeg'])
+    author_handle = st.text_input("Handle / Website", "@metamorphosis")
     
-    # Brand Identity
-    logo_file = st.file_uploader("Upload Brand Logo", type=['png', 'jpg', 'jpeg'])
-    author_handle = st.text_input("LinkedIn Handle/Website", "@metamorphosis", help="Shown in the footer")
-    
-    # Colors
+    st.markdown("---")
+    st.markdown("### 🌈 Brand Colors")
     col1, col2 = st.columns(2)
     with col1:
-        primary_color = st.color_picker("Primary Color", "#714B67") # Odoo Purple
+        primary_color = st.color_picker("Primary", "#714B67")
         bg_color = st.color_picker("Background", "#FFFFFF")
     with col2:
-        secondary_color = st.color_picker("Secondary Color", "#017E84") # Odoo Teal
-        text_color = st.color_picker("Text Color", "#333333")
-        
-    # Font
-    font_choice = st.selectbox("Font Style", ["Inter", "Roboto", "Poppins", "Merriweather"])
+        secondary_color = st.color_picker("Secondary", "#017E84")
+        text_color = st.color_picker("Text", "#333333")
+    
+    font_choice = st.selectbox("Font", ["Inter", "Roboto", "Poppins"])
 
-    st.markdown("---")
-    st.info("Built for Metamorphosis & Odoo Partners.")
+# --- Main Content: Wizard ---
+st.title("✨ AI Carousel Generator")
+st.markdown("Create premium LinkedIn carousels in seconds.")
 
-# Main Content
-st.markdown("### 1. Content Source")
+# Session State
+if 'step' not in st.session_state: st.session_state.step = 1
+if 'slides_content' not in st.session_state: st.session_state.slides_content = None
+if 'thumbnail_url' not in st.session_state: st.session_state.thumbnail_url = None
+
+# Step 1: Source
+st.markdown('<div class="step-container">', unsafe_allow_html=True)
+st.markdown('<div class="step-header">1️⃣ Content Source</div>', unsafe_allow_html=True)
+
 tab1, tab2 = st.tabs(["📺 YouTube Video", "📝 Manual Text"])
+text_content = ""
 
-text = ""
 with tab1:
-    url = st.text_input("YouTube Video URL", placeholder="https://youtube.com/watch?v=...")
-    if url: st.caption("We'll extract the transcript automatically.")
-
+    url = st.text_input("YouTube URL", placeholder="https://youtube.com/watch?v=...")
 with tab2:
-    manual_text = st.text_area("Paste Text Content", height=150, placeholder="Paste a blog post, transcript, or rough notes here.")
+    manual_text = st.text_area("Paste Text", height=150)
 
-st.markdown("### 2. Carousel Type")
-st.info("🔒 Mode: Success Story (Fixed)")
-content_type = "Success Story"
-
-# Session State for Content
-if 'slides_content' not in st.session_state:
-    st.session_state.slides_content = None
-if 'thumbnail_url' not in st.session_state:
-    st.session_state.thumbnail_url = None
-
-if st.button("🔍 Analyze Video & Plan Content", type="primary"):
-    with st.spinner("Processing Transcript..."):
-        # 1. Get Text
+if st.button("Analyze & Generate Plan ➔", type="primary", use_container_width=True):
+    with st.spinner("Analyzing content..."):
+        # Fetch Text
         if manual_text:
-            text = manual_text
+            text_content = manual_text
             st.session_state.thumbnail_url = None
         elif url:
-            with st.spinner("Fetching transcript..."):
-                try:
-                    text, thumbnail_url = get_transcript_text(url)
-                    st.session_state.thumbnail_url = thumbnail_url
-                    if not text:
-                        st.error("Transcript is empty. Please use Manual Text.")
-                        st.stop()
-                except ValueError as ve:
-                    st.error(f"Transcript Error: {ve}")
-                    st.info("💡 Tip: Use the 'Manual Text' tab.")
-                    st.stop()
-                except Exception as e:
-                    st.error(f"Unexpected Error: {e}")
-                    st.stop()
-        else:
-            st.error("Please provide a Video URL or Manual Text.")
-            st.stop()
-
-        # 2. Process Content (LLM)
-        with st.spinner("🧠 Drafting Content Plan..."):
-            if not api_key:
-                st.warning("⚠️ No API Key. Using Basic Mode.")
-            
-            content, error_msg = process_content(text, api_key=api_key, content_type=content_type)
-            
-            if error_msg:
-                st.session_state.error_msg = error_msg
-            else:
-                st.session_state.error_msg = None
-            
-            if content:
-                st.session_state.slides_content = content
-                st.rerun() # Rerun to show the editor
-            else:
-                st.error("Failed to generate content.")
-
-# Review & Edit Section
-if st.session_state.slides_content:
-    st.markdown("---")
-    st.header("📝 Review & Edit Plan")
-    
-    # Background Options
-    st.markdown("### 🖼️ Background & Visuals")
-    
-    bg_mode = st.radio(
-        "Background Style", 
-        ["Solid Color", "Gradient Pattern", "Video Thumbnail", "Custom Image"],
-        horizontal=True
-    )
-    
-    bg_image_url = None
-    bg_opacity = 0.15 # Default
-    
-    if bg_mode == "Video Thumbnail":
-        if st.session_state.thumbnail_url:
-            st.image(st.session_state.thumbnail_url, width=150)
-            bg_image_url = st.session_state.thumbnail_url
-            bg_opacity = st.slider("Thumbnail Opacity", 0.0, 1.0, 0.15, 0.05)
-        else:
-            st.warning("No video thumbnail available.")
-            
-    elif bg_mode == "Custom Image":
-        uploaded_bg = st.file_uploader("Upload Background Image", type=['png', 'jpg', 'jpeg'], key="bg_uploader")
-        if uploaded_bg:
-            st.image(uploaded_bg, width=150)
-            # We'll handle saving this later
-            bg_image_url = uploaded_bg 
-            bg_opacity = st.slider("Image Opacity", 0.0, 1.0, 0.15, 0.05)
-            
-    elif bg_mode == "Gradient Pattern":
-        st.info("Applies a subtle geometric pattern overlay.")
+            try:
+                text_content, thumb = get_transcript_text(url)
+                st.session_state.thumbnail_url = thumb
+            except Exception as e:
+                st.error(f"Error: {e}")
+                st.stop()
         
-    # Show Error if Fallback was used
-    if 'error_msg' in st.session_state and st.session_state.error_msg:
-        st.warning(f"⚠️ AI Generation Failed: {st.session_state.error_msg}")
-        st.info("Using 'Basic Mode' fallback content. Please edit manually.")
-    else:
-        st.info("Edit the text below before generating the final images.")
+        if not text_content:
+            st.error("Please provide content.")
+            st.stop()
+            
+        # Generate
+        content, error = process_content(text_content, api_key=api_key, content_type="Success Story")
+        
+        if content:
+            st.session_state.slides_content = content
+            st.session_state.step = 2
+            st.rerun()
+        else:
+            st.error(f"Generation Failed: {error}")
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Step 2: Review & Edit
+if st.session_state.slides_content:
+    st.markdown('<div class="step-container">', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">2️⃣ Review Content</div>', unsafe_allow_html=True)
     
     updated_slides = []
     for i, slide in enumerate(st.session_state.slides_content):
-        with st.expander(f"Slide {i+1}: {slide.get('title', 'Untitled')}", expanded=True):
+        with st.expander(f"Slide {i+1}: {slide.get('title', 'Untitled')}", expanded=(i==0)):
             col1, col2 = st.columns([1, 2])
             with col1:
-                subtitle = st.text_input(f"Subtitle {i+1}", slide.get('subtitle', ''))
-                title = st.text_input(f"Title {i+1}", slide.get('title', ''))
+                sub = st.text_input(f"Subtitle {i+1}", slide.get('subtitle', ''))
+                tit = st.text_input(f"Title {i+1}", slide.get('title', ''))
             with col2:
-                # Check for Stats (Success Story Result Slide)
                 if 'stats' in slide:
-                    st.caption("📊 Key Metrics (Value | Label)")
-                    current_stats = slide['stats']
+                    st.caption("Stats (Value | Label)")
                     new_stats = []
-                    for j, stat in enumerate(current_stats):
+                    for j, stat in enumerate(slide['stats']):
                         c1, c2 = st.columns(2)
-                        with c1:
-                            val = st.text_input(f"Value {j+1} (Slide {i+1})", stat.get('value', ''))
-                        with c2:
-                            lbl = st.text_input(f"Label {j+1} (Slide {i+1})", stat.get('label', ''))
-                        new_stats.append({"value": val, "label": lbl})
-                    
-                    # Store stats, clear body
-                    updated_slides.append({
-                        "subtitle": subtitle,
-                        "title": title,
-                        "body": "",
-                        "stats": new_stats
-                    })
+                        v = c1.text_input(f"Val {i}_{j}", stat.get('value', ''))
+                        l = c2.text_input(f"Lbl {i}_{j}", stat.get('label', ''))
+                        new_stats.append({"value": v, "label": l})
+                    updated_slides.append({"subtitle": sub, "title": tit, "stats": new_stats, "body": ""})
                 else:
-                    # Handle body as list or string
-                    body_val = slide.get('body', '')
-                    if isinstance(body_val, list):
-                        body_val = "\n".join(body_val)
-                    
-                    body = st.text_area(f"Body Text {i+1}", body_val, height=100, help="Enter bullet points on new lines.")
-                    
-                    # Convert back to list if it looks like a list
-                    if "\n" in body:
-                        body_final = [line.strip() for line in body.split("\n") if line.strip()]
-                    else:
-                        body_final = body
-                        
-                    updated_slides.append({
-                        "subtitle": subtitle,
-                        "title": title,
-                        "body": body_final
-                    })
+                    b_val = slide.get('body', '')
+                    if isinstance(b_val, list): b_val = "\n".join(b_val)
+                    body = st.text_area(f"Body {i+1}", b_val)
+                    body_list = [x.strip() for x in body.split('\n') if x.strip()]
+                    updated_slides.append({"subtitle": sub, "title": tit, "body": body_list})
     
-    # Update session state with edits (optional, but good for persistence)
-    # st.session_state.slides_content = updated_slides 
+    st.session_state.final_slides = updated_slides
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("---")
-    if st.button("✨ Generate Final Images", type="primary"):
-        with st.spinner("🎨 Rendering High-Quality Slides..."):
+    # Step 3: Visuals
+    st.markdown('<div class="step-container">', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">3️⃣ Visual Style</div>', unsafe_allow_html=True)
+    
+    bg_mode = st.radio("Background", ["Gradient Pattern", "Solid Color", "Video Thumbnail", "Custom Image"], horizontal=True)
+    
+    bg_url = None
+    bg_opacity = 0.15
+    
+    if bg_mode == "Video Thumbnail":
+        if st.session_state.thumbnail_url:
+            st.image(st.session_state.thumbnail_url, width=200)
+            bg_url = st.session_state.thumbnail_url
+            bg_opacity = st.slider("Opacity", 0.0, 1.0, 0.15)
+        else:
+            st.warning("No thumbnail available.")
+            
+    elif bg_mode == "Custom Image":
+        up_bg = st.file_uploader("Upload Background", type=['png', 'jpg'])
+        if up_bg:
+            st.image(up_bg, width=200)
+            bg_url = up_bg
+            bg_opacity = st.slider("Opacity", 0.0, 1.0, 0.15)
+
+    if st.button("✨ Generate Carousel", type="primary", use_container_width=True):
+        with st.spinner("Rendering High-Res Images..."):
             session_id = str(uuid.uuid4())
-            output_dir = os.path.join("output", session_id)
-            os.makedirs(output_dir, exist_ok=True)
+            out_dir = os.path.join("output", session_id)
+            os.makedirs(out_dir, exist_ok=True)
             
-            logo_path = None
+            # Save Assets
+            l_path = None
             if logo_file:
-                logo_path = os.path.join(output_dir, "logo.png")
-                with open(logo_path, "wb") as f:
-                    f.write(logo_file.getbuffer())
+                l_path = os.path.join(out_dir, "logo.png")
+                with open(l_path, "wb") as f: f.write(logo_file.getbuffer())
+                
+            final_bg_url = bg_url
+            if bg_mode == "Custom Image" and bg_url:
+                b_path = os.path.join(out_dir, "bg.png")
+                with open(b_path, "wb") as f: f.write(bg_url.getbuffer())
+                final_bg_url = os.path.abspath(b_path)
             
-            # Initialize Generator
-            generator = CarouselGenerator(
-                logo_path=logo_path, 
-                brand_color=primary_color, 
-                secondary_color=secondary_color,
-                font_name=font_choice,
-                author_handle=author_handle
-            )
-            
-            # Handle Custom Image Upload
-            final_bg_image_url = bg_image_url
-            if bg_mode == "Custom Image" and bg_image_url:
-                # Save uploaded file to output dir
-                bg_path = os.path.join(output_dir, "bg_image.png")
-                with open(bg_path, "wb") as f:
-                    f.write(bg_image_url.getbuffer())
-                # Pass absolute path to generator (it handles paths too)
-                final_bg_image_url = os.path.abspath(bg_path)
-            
+            # Generate
+            gen = CarouselGenerator(l_path, primary_color, secondary_color, font_choice, author_handle)
             try:
-                # Use the UPDATED slides from the form
-                image_paths = generator.generate_all_slides(
-                    updated_slides, 
-                    output_dir, 
-                    bg_image_url=final_bg_image_url,
-                    bg_opacity=bg_opacity,
+                paths = gen.generate_all_slides(
+                    st.session_state.final_slides, 
+                    out_dir, 
+                    bg_image_url=final_bg_url, 
+                    bg_opacity=bg_opacity, 
                     bg_mode=bg_mode
                 )
+                st.session_state.generated_paths = paths
+                st.session_state.output_dir = out_dir
+                st.rerun()
             except Exception as e:
-                st.error(f"Generation Failed: {e}")
-                st.stop()
-                
-        # Display Results
-        st.success("🎉 Carousel Ready!")
-        
-        # Grid Display
-        for idx, img_path in enumerate(image_paths):
-            col_img, col_btn = st.columns([3, 1])
-            with col_img:
-                st.image(img_path, caption=f"Slide {idx+1}", use_container_width=True)
-            with col_btn:
-                with open(img_path, "rb") as f:
-                    st.download_button(
-                        label=f"⬇️ Slide {idx+1}",
-                        data=f,
-                        file_name=f"slide_{idx+1}.png",
-                        mime="image/png",
-                        key=f"btn_{idx}"
-                    )
-        
-        # Zip Download
-        shutil.make_archive(os.path.join(output_dir, "carousel"), 'zip', output_dir)
-        zip_path = os.path.join(output_dir, "carousel.zip")
-        
-        st.markdown("---")
-        with open(zip_path, "rb") as f:
-            st.download_button(
-                label="📦 Download Full Carousel (ZIP)",
-                data=f,
-                file_name="linkedin_carousel.zip",
-                mime="application/zip",
-                type="primary"
-            )
+                st.error(f"Error: {e}")
 
-st.markdown("---")
-st.markdown("<p style='text-align: center; font-size: 0.8em;'>Powered by Metamorphosis AI • <a href='#'>Documentation</a></p>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Step 4: Results
+if 'generated_paths' in st.session_state and st.session_state.generated_paths:
+    st.markdown('<div class="step-container">', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">🎉 Your Carousel is Ready!</div>', unsafe_allow_html=True)
+    
+    # Zip
+    shutil.make_archive(os.path.join(st.session_state.output_dir, "carousel"), 'zip', st.session_state.output_dir)
+    with open(os.path.join(st.session_state.output_dir, "carousel.zip"), "rb") as f:
+        st.download_button("📦 Download All (ZIP)", f, "carousel.zip", "application/zip", type="primary")
+    
+    st.markdown("---")
+    
+    # Gallery
+    cols = st.columns(3)
+    for i, path in enumerate(st.session_state.generated_paths):
+        with cols[i % 3]:
+            st.image(path, caption=f"Slide {i+1}")
+            with open(path, "rb") as f:
+                st.download_button(f"⬇️ Slide {i+1}", f, f"slide_{i+1}.png", "image/png")
+                
+    st.markdown('</div>', unsafe_allow_html=True)
