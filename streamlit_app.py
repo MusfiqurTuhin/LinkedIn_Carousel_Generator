@@ -127,6 +127,10 @@ if 'slides' not in st.session_state:
     st.session_state.slides = []
 if 'generated_html' not in st.session_state:
     st.session_state.generated_html = None
+if 'generated_paths' not in st.session_state:
+    st.session_state.generated_paths = None
+if 'output_dir' not in st.session_state:
+    st.session_state.output_dir = None
 
 # --- Main Content ---
 tab1, tab2, tab3 = st.tabs(["1. Content & Generate", "2. Edit & Refine", "3. Export"])
