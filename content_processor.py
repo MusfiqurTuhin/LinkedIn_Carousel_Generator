@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import random
 import google.generativeai as genai
 
 def verify_api_key(api_key):
@@ -9,8 +10,8 @@ def verify_api_key(api_key):
     """
     try:
         genai.configure(api_key=api_key)
-        # Try models in order of preference (Updated December 2, 2025)
-        models_to_try = ['gemini-3-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash']
+        # Try models in order of preference
+        models_to_try = ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash']
         
         for model_name in models_to_try:
             try:
@@ -24,10 +25,32 @@ def verify_api_key(api_key):
     except Exception as e:
         return False, str(e)
 
-def process_content(text, api_key=None, provider="gemini", content_type="Success Story"):
+def get_layout_for_slide(slide_index, total_slides, content_type, seed=0):
+    """
+    Deterministically selects a layout based on slide position and seed.
+    """
+    random.seed(seed + slide_index)
+    
+    if slide_index == 0:
+        return "layout-cover"
+    elif slide_index == total_slides - 1:
+        return "layout-cta"
+    
+    # Middle slides
+    options = ["layout-list", "layout-quote", "layout-data", "layout-split"]
+    
+    # Weight options based on content type (heuristic)
+    if content_type == "Data Insights":
+        options.extend(["layout-data"] * 3)
+    elif content_type == "Tutorial":
+        options.extend(["layout-list", "layout-split"] * 2)
+        
+    return random.choice(options)
+
+def process_content(text, api_key=None, provider="gemini", content_type="Success Story", style_seed=42):
     """
     Analyzes the transcript using an LLM to generate structured carousel content.
-    Supports multiple content types with specialized prompts.
+    Returns a list of slide objects with layout information.
     """
     if not text:
         return [], "No text provided"
@@ -41,135 +64,68 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
                 
                 # Define content-type-specific prompts
                 prompts = {
-                    "Success Story": """
-                **Structure (Success Story) - STRICTLY FOLLOW THIS:**
-                
-                **Slide 1: The Hook**
-                - Title: The main achievement (e.g., "How [Company] Scaled Social Impact with Odoo").
-                - Subtitle: "Success Story".
-                - Body: "Powered by Metamorphosis - Bangladesh's Leading Odoo Partner" (or similar context).
-                
-                **Slide 2: The Challenge**
-                - Title: "The Challenge".
-                - Subtitle: Context (e.g., "[Company] faced critical bottlenecks:").
-                - Body: A list of 3 specific pain points (e.g., "Manual processes", "Lack of data").
-                
-                **Slide 3: The Solution**
-                - Title: "The Solution".
-                - Subtitle: "Metamorphosis implemented a comprehensive Odoo ERP ecosystem:".
-                - Body: A list of 3 specific solutions (e.g., "Automated Manufacturing", "Real-time Dashboards").
-                
-                **Slide 4: The Result**
-                - Title: "The Result".
-                - Subtitle: "Measurable Business Growth".
-                - Body: LEAVE EMPTY.
-                - Stats: Extract 2 key metrics. Format: [{"value": "45%", "label": "Business Growth"}, {"value": "50%", "label": "Faster Process"}].
-                
-                **Slide 5: CTA**
-                - Title: "Ready to Transform Your Business?".
-                - Subtitle: "Partner with the experts who deliver results.".
-                - Body: "Contact Metamorphosis".
-                """,
-                    
-                    "Tutorial": """
-                **Structure (Tutorial) - STRICTLY FOLLOW THIS:**
-                
-                **Slide 1: Introduction**
-                - Title: Main topic (e.g., "Master [Skill/Topic] in 5 Steps").
-                - Subtitle: "Step-by-Step Guide".
-                - Body: Brief intro about what they'll learn.
-                
-                **Slide 2-4: Steps**
-                - Title: "Step [N]: [Action]" (e.g., "Step 1: Setup Your Environment").
-                - Subtitle: Brief description.
-                - Body: 2-3 bullet points with specific actions.
-                
-                **Slide 5: Conclusion**
-                - Title: "You're Ready!".
-                - Subtitle: "Key Takeaways".
-                - Body: 2-3 summary points or next steps.
-                """,
-                    
-                    "Tips & Tricks": """
-                **Structure (Tips & Tricks) - STRICTLY FOLLOW THIS:**
-                
-                **Slide 1: Hook**
-                - Title: Attention-grabbing statement (e.g., "10X Your Productivity").
-                - Subtitle: "Pro Tips You Need to Know".
-                - Body: Brief intro.
-                
-                **Slide 2-4: Tips**
-                - Title: "Tip [N]: [Short Title]".
-                - Subtitle: Category or context.
-                - Body: 2-3 actionable bullet points.
-                
-                **Slide 5: Bonus**
-                - Title: "Bonus Tip" or "Common Mistakes to Avoid".
-                - Subtitle: Extra value.
-                - Body: Final wisdom or CTA.
-                """,
-                    
-                    "Data Insights": """
-                **Structure (Data Insights) - STRICTLY FOLLOW THIS:**
-                
-                **Slide 1: Hook**
-                - Title: Main insight (e.g., "The State of [Industry] in 2025").
-                - Subtitle: "Data-Driven Insights".
-                - Body: Brief context.
-                
-                **Slide 2-4: Key Stats**
-                - Title: "[Stat Category]".
-                - Subtitle: Context.
-                - Stats: [{"value": "XXX", "label": "Description"}] - Use this format for visual impact.
-                
-                **Slide 5: Takeaway**
-                - Title: "What This Means".
-                - Subtitle: "Key Implications".
-                - Body: 2-3 actionable insights.
-                """
+                    "Success Story": "Focus on problem-solution-result narrative. Use data where possible.",
+                    "Tutorial": "Break down into clear, actionable steps. Use 'Split' or 'List' layouts.",
+                    "Tips & Tricks": "Quick, punchy tips. Use 'Quote' or 'List' layouts.",
+                    "Data Insights": "Focus on statistics and trends. Use 'Data' layouts."
                 }
                 
-                # Get the appropriate prompt structure
                 type_instructions = prompts.get(content_type, prompts["Success Story"])
                 
-                # Base prompt
-                base_prompt = f"""
-                You are a Viral LinkedIn Content Creator. Transform the following content into a high-performing 5-slide carousel.
+                system_prompt = f"""
+                You are an expert Social Media Designer and Copywriter. 
+                Transform the provided text into a high-performing 5-8 slide LinkedIn carousel.
                 
-                Content:
-                {text[:15000]}
-                
-                **Goal:** Create a {content_type} carousel.
-                """
-                
-                final_prompt = f"""
-                {base_prompt}
+                **Goal:** Create a "{content_type}" carousel.
                 {type_instructions}
                 
-                **Style Guide:**
-                - Punchy, direct, no fluff.
-                - Use emojis where appropriate.
-                - Make it scannable and engaging.
+                **Available Layouts:**
+                - `layout-cover`: Big bold title, minimal text. (Slide 1)
+                - `layout-quote`: A powerful quote or statement.
+                - `layout-list`: 3-5 bullet points.
+                - `layout-data`: Key statistic or chart data.
+                - `layout-split`: Image/Icon on one side, text on the other.
+                - `layout-cta`: Call to Action. (Last Slide)
                 
                 **Output JSON format ONLY:**
                 [
                     {{
-                        "title": "Slide Title", 
-                        "subtitle": "Slide Subtitle", 
-                        "body": "Body text or List of strings",
-                        "stats": [{{"value": "45%", "label": "Growth"}}] // OPTIONAL: Only for Result/Stats slides
+                        "layout": "layout-cover",
+                        "title": "Main Headline",
+                        "subtitle": "Compelling Subhead",
+                        "body": "Brief intro or hook.",
+                        "image_prompt": "Description for an illustration"
+                    }},
+                    {{
+                        "layout": "layout-list",
+                        "title": "Key Point 1",
+                        "body": ["Bullet 1", "Bullet 2", "Bullet 3"],
+                        "image_prompt": "Icon representing X"
                     }},
                     ...
                 ]
+                
+                **Rules:**
+                1. Vary the layouts. Don't use the same layout twice in a row (except List).
+                2. Keep text concise. No walls of text.
+                3. Ensure the flow is logical.
+                4. Extract specific stats for 'layout-data'.
                 """
                 
-                # Try models in sequence (Updated December 2, 2025)
-                models_to_try = ['gemini-3-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash']
+                final_prompt = f"""
+                {system_prompt}
+                
+                **Input Text:**
+                {text[:20000]}
+                """
+                
+                # Try models in sequence
+                models_to_try = ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash']
                 last_exception = None
                 
                 for model_name in models_to_try:
                     try:
-                        print(f"Trying model: {model_name}...")
+                        # print(f"Trying model: {model_name}...")
                         model = genai.GenerativeModel(model_name)
                         response = model.generate_content(final_prompt)
                         content = response.text
@@ -180,16 +136,26 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
                         
                         if start_idx != -1 and end_idx != -1:
                             json_str = content[start_idx:end_idx+1]
-                            return json.loads(json_str), None # Success!
+                            slides = json.loads(json_str)
+                            
+                            # Post-processing: Ensure layouts are valid and add variety if needed
+                            for i, slide in enumerate(slides):
+                                if "layout" not in slide or slide["layout"] not in ["layout-cover", "layout-quote", "layout-list", "layout-data", "layout-split", "layout-cta"]:
+                                    slide["layout"] = get_layout_for_slide(i, len(slides), content_type, style_seed)
+                                
+                                # Ensure body is a list for list layouts
+                                if slide["layout"] == "layout-list" and isinstance(slide.get("body"), str):
+                                    slide["body"] = [slide["body"]]
+                                    
+                            return slides, None
                         else:
                             raise ValueError("No JSON array found")
                             
                     except Exception as e:
-                        print(f"Model {model_name} failed: {e}")
+                        # print(f"Model {model_name} failed: {e}")
                         last_exception = e
-                        continue # Try next model
+                        continue
                 
-                # If we get here, all models failed
                 if last_exception:
                     raise last_exception
                     
@@ -197,56 +163,41 @@ def process_content(text, api_key=None, provider="gemini", content_type="Success
             error_msg = f"AI generation failed: {str(e)}"
             print(f"{error_msg}. Falling back to heuristic.")
     
-    # Smarter Heuristic Fallback for Success Story
-    # 1. Clean text
-    clean_text = re.sub(r'\[.*?\]', '', text) # Remove timestamps/notes [00:12]
-    clean_text = re.sub(r'>>', '', clean_text) # Remove speaker markers >>
-    clean_text = re.sub(r'\s+', ' ', clean_text).strip() # Remove extra whitespace/newlines
+    # Fallback Heuristic (Updated for new structure)
+    # This is a basic fallback if AI fails or no key is provided
+    random.seed(style_seed)
     
-    sentences = re.split(r'(?<=[.!?]) +', clean_text)
-    sentences = [s.strip() for s in sentences if len(s) > 30] # Filter short junk
-    
-    # 2. Extract sections based on keywords (simple heuristic)
-    challenges = [s for s in sentences if any(k in s.lower() for k in ["problem", "difficult", "issue", "challenge", "struggle", "lack", "manual"])]
-    solutions = [s for s in sentences if any(k in s.lower() for k in ["solution", "implement", "use", "using", "automate", "integrated", "odoo"])]
-    results = [s for s in sentences if any(k in s.lower() for k in ["result", "growth", "increase", "save", "faster", "percent", "%"])]
-    
-    # Fill gaps
-    if not challenges: challenges = sentences[:2]
-    if not solutions: solutions = sentences[2:4] if len(sentences) > 4 else ["Implemented Odoo ERP"]
-    if not results: results = sentences[-3:-1] if len(sentences) > 3 else ["Improved efficiency"]
-
-    # Dynamic Titles (Try to find a short summary sentence or use generic)
-    # This is hard without LLM, but we can try to vary it slightly or just keep it safe.
-    # We will stick to safe titles but ensure the BODY is rich.
-
-    fallback_content = [
+    fallback_slides = [
         {
+            "layout": "layout-cover",
+            "title": "Transform Your Business",
             "subtitle": "Success Story",
-            "title": "Transformation Journey", # Changed from generic "How We..."
-            "body": "Powered by Metamorphosis - Bangladesh's Leading Odoo Partner"
+            "body": "How we achieved X with Y."
         },
         {
-            "subtitle": "The Challenge",
-            "title": "Key Obstacles", # Changed
-            "body": challenges[:3] if challenges else ["Manual processes", "Lack of data visibility"]
+            "layout": "layout-split",
+            "title": "The Challenge",
+            "subtitle": "What was wrong",
+            "body": "Manual processes were slowing us down."
         },
         {
-            "subtitle": "The Solution",
-            "title": "Strategic Implementation", # Changed
-            "body": solutions[:3] if solutions else ["Automated Manufacturing", "Real-time Dashboards"]
+            "layout": "layout-list",
+            "title": "The Solution",
+            "body": ["Implemented Automation", "Streamlined Workflows", "Real-time Data"]
         },
         {
-            "subtitle": "The Result",
-            "title": "Business Impact", # Changed
-            "body": "",
-            "stats": [{"value": "100%", "label": "Transformation"}, {"value": "Growth", "label": "Achieved"}] 
+            "layout": "layout-data",
+            "title": "The Results",
+            "subtitle": "Measurable Impact",
+            "stats": [{"value": "50%", "label": "Growth"}, {"value": "2x", "label": "Speed"}]
         },
         {
-            "subtitle": "Partner with Experts",
-            "title": "Start Your Journey",
-            "body": "Contact Metamorphosis\nLink in bio"
+            "layout": "layout-cta",
+            "title": "Ready to Scale?",
+            "subtitle": "Contact Us Today",
+            "body": "Link in bio"
         }
     ]
     
-    return fallback_content, error_msg
+    return fallback_slides, error_msg
+

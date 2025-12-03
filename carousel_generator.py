@@ -39,12 +39,11 @@ class CarouselGenerator:
             print(f"Failed to download image: {e}")
         return None
 
-    def generate_all_slides(self, slides_content, output_dir, bg_image_url=None, bg_opacity=0.15, bg_mode="Solid Color"):
+    def generate_html_only(self, slides_content, bg_image_url=None, bg_opacity=0.15, bg_mode="Solid Color"):
         """
-        Generates all slides at once by rendering a single HTML with all slides,
-        then taking screenshots of each slide element.
+        Generates the HTML content for the carousel without taking screenshots.
+        Useful for live preview.
         """
-        # 1. Render HTML
         logo_b64 = self.get_logo_base64()
         
         # Handle local file paths vs URLs for background
@@ -72,6 +71,16 @@ class CarouselGenerator:
             bg_opacity=bg_opacity,
             bg_mode=bg_mode
         )
+        
+        return html_content
+
+    def generate_all_slides(self, slides_content, output_dir, bg_image_url=None, bg_opacity=0.15, bg_mode="Solid Color"):
+        """
+        Generates all slides at once by rendering a single HTML with all slides,
+        then taking screenshots of each slide element.
+        """
+        # 1. Render HTML
+        html_content = self.generate_html_only(slides_content, bg_image_url, bg_opacity, bg_mode)
         
         temp_html_path = os.path.abspath(os.path.join(output_dir, "temp_carousel.html"))
         with open(temp_html_path, "w") as f:
@@ -107,7 +116,7 @@ class CarouselGenerator:
 
             # 3. Open File
             driver.get(f"file://{temp_html_path}")
-            time.sleep(0.5) # Reduced wait time - Wait for fonts/render
+            time.sleep(1.0) # Wait for fonts/render (slightly increased for safety)
             
             # 4. Screenshot each slide
             for i in range(len(slides_content)):
@@ -130,11 +139,3 @@ class CarouselGenerator:
             # os.remove(temp_html_path) 
             
         return generated_files
-
-    # Compatibility method for existing code (though we prefer batch generation now)
-    def generate_slide(self, slide_data, page_num, total_pages, output_dir):
-        # This method signature was used by the loop in app.py.
-        # Since we now generate ALL slides in one go for efficiency (one browser session),
-        # we should refactor app.py to call generate_all_slides.
-        # For now, this is a placeholder or we can implement single slide generation if needed.
-        pass
