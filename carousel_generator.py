@@ -96,8 +96,11 @@ class CarouselGenerator:
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--disable-logging")
         chrome_options.add_argument("--log-level=3")
+        chrome_options.add_argument("--hide-scrollbars")
+        # High DPI rendering for better quality
+        chrome_options.add_argument("--force-device-scale-factor=2")
         # Set window size large enough to fit the slide (1080x1080)
-        chrome_options.add_argument("--window-size=1200,1200")
+        chrome_options.add_argument("--window-size=2000,2000")
         # Performance optimizations
         chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
         chrome_options.page_load_strategy = 'eager'
@@ -116,7 +119,9 @@ class CarouselGenerator:
 
             # 3. Open File
             driver.get(f"file://{temp_html_path}")
-            time.sleep(1.0) # Wait for fonts/render (slightly increased for safety)
+            # Wait for fonts/render (Increased for safety)
+            time.sleep(2.0) 
+
             
             # 4. Screenshot each slide
             for i in range(len(slides_content)):

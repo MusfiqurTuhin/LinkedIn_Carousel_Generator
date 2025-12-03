@@ -1,10 +1,38 @@
 /* Global Variables & Theming */
 :root {
-    --primary: {{ primary_color }};
-    --secondary: {{ secondary_color }};
-    --text-main: {{ text_color }};
-    --bg-color: {{ bg_color }};
-    --font-family: '{{ font_name }}', sans-serif;
+    --primary: {
+            {
+            primary_color
+        }
+    }
+
+    ;
+
+    --secondary: {
+            {
+            secondary_color
+        }
+    }
+
+    ;
+
+    --text-main: {
+            {
+            text_color
+        }
+    }
+
+    ;
+
+    --bg-color: {
+            {
+            bg_color
+        }
+    }
+
+    ;
+    --font-family: '{{ font_name }}',
+    sans-serif;
     --slide-size: 1080px;
     --padding: 80px;
     --glass-bg: rgba(255, 255, 255, 0.85);
@@ -23,7 +51,8 @@
 
 body {
     font-family: var(--font-family);
-    background-color: #f0f0f0; /* Preview bg */
+    background-color: #f0f0f0;
+    /* Preview bg */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -41,7 +70,8 @@ body {
     display: flex;
     flex-direction: column;
     padding: var(--padding);
-    box-shadow: 0 0 20px rgba(0,0,0,0.1); /* For preview visibility */
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    /* For preview visibility */
 }
 
 /* Background Handling */
@@ -59,14 +89,21 @@ body {
 }
 
 .bg-gradient {
-    background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.4)), 
-                var(--gradient-main);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.4)),
+        var(--gradient-main);
 }
 
 .bg-image {
     background-size: cover;
     background-position: center;
-    opacity: {{ bg_opacity }};
+
+    opacity: {
+            {
+            bg_opacity
+        }
+    }
+
+    ;
 }
 
 .bg-abstract::before,
@@ -129,7 +166,7 @@ body {
     justify-content: space-between;
     align-items: center;
     padding-top: 30px;
-    border-top: 1px solid rgba(0,0,0,0.05);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .author-handle {
@@ -357,6 +394,28 @@ p {
     border: 8px solid white;
     box-shadow: var(--shadow-card);
     margin-bottom: 40px;
-    background-color: #ddd; /* Placeholder */
+    background-color: #ddd;
+    /* Placeholder */
     background-size: cover;
+}
+
+/* Print / Export Optimization */
+@media print {
+    @page {
+        size: 1080px 1080px;
+        margin: 0;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background: none;
+    }
+
+    .slide {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+        page-break-after: always;
+        box-shadow: none;
+    }
 }
